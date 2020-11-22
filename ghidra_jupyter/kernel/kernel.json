@@ -1,0 +1,11 @@
+{
+    "display_name": "Ghidra(Kotlin)",
+    "language": "kotlin",
+    "interrupt_mode": "message",
+    "argv": [
+        "python",
+        "-m",
+        "ghidra_jupyter.dispatcher",
+        "{connection_file}"
+    ]
+}
