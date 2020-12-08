@@ -36,7 +36,9 @@
    
 ## Usage
 
-After installation, you'll see 2 new buttons and a new menu inside Ghidra.
+After installation, you should be prompted about a new plugin when opening the CodeBrowser. Confirm the installation and activate it via "File -> Configure..." and ticking the checkbox for the "Miscellaneous" Group.
+
+Directly after you'll see 2 new buttons and a new menu inside Ghidra.
 
 ![Ghidra Buttons](resources/readme/buttons.png)
 
@@ -45,6 +47,7 @@ After installation, you'll see 2 new buttons and a new menu inside Ghidra.
 
 The third action is only available in the menu and provides a shortcut
 to open an already running `juptyter-notebook` server or to start a new one.
+
 
 ### Kotlin QtConsole
 
