@@ -24,6 +24,12 @@ jobs:
         run: wget https://ghidra-sre.org/ghidra_9.2.2_PUBLIC_20201229.zip -O /tmp/ghidra.zip
       - name: Unzip Ghidra Release
         run: unzip /tmp/ghidra.zip -d /tmp
+
+      - name: Get Kotlin Kernel libraries
+        run: |
+                pip3 wheel kotlin-jupyter-kernel
+                unzip -j kotlin_jupyter_kernel-*-py3-none-any.whl "run_kotlin_kernel/jars/*" -d ./GhidraJupyterKotlin/lib/
+
       - name: Build with Gradle
         working-directory: ./GhidraJupyterKotlin
         run: gradle -PGHIDRA_INSTALL_DIR=/tmp/ghidra_9.2.2_PUBLIC/ buildExtension
