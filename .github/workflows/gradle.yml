@@ -21,7 +21,7 @@ jobs:
         with:
           java-version: 1.11
       - name: Grab Ghidra Release
-        run: wget https://ghidra-sre.org/ghidra_9.2.2_PUBLIC_20201229.zip -o /tmp/ghidra.zip
+        run: wget https://ghidra-sre.org/ghidra_9.2.2_PUBLIC_20201229.zip -O /tmp/ghidra.zip
       - name: Unzip Ghidra Release
         run: unzip /tmp/ghidra.zip -d /tmp
       - name: Build with Gradle
