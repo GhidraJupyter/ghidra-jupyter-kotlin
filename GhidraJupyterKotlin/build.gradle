@@ -14,6 +14,20 @@
 // application.gradle.version property in <GHIDRA_INSTALL_DIR>/Ghidra/application.properties
 // for the correction version of Gradle to use for the Ghidra installation you specify.
 
+configurations {
+    requiredLibs //.extendsFrom implementation
+}
+
+
+	repositories {
+			flatDir {
+				dirs 'lib'
+			}
+			mavenCentral()
+			jcenter()
+
+		}
+
 //----------------------START "DO NOT MODIFY" SECTION------------------------------
 def ghidraInstallDir
 
@@ -31,3 +45,13 @@ else {
 	throw new GradleException("GHIDRA_INSTALL_DIR is not defined!")
 }
 //----------------------END "DO NOT MODIFY" SECTION-------------------------------
+
+dependencies {
+	requiredLibs('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.8.3.231'){ exclude group: "org.slf4j", module: "slf4j-api" }
+}
+
+task copyDependencies(type: Copy) {
+    from configurations.requiredLibs
+    into 'lib'
+}
+buildExtension.dependsOn(copyDependencies)
