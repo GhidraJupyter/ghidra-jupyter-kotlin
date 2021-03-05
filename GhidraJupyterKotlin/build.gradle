@@ -47,7 +47,7 @@ else {
 //----------------------END "DO NOT MODIFY" SECTION-------------------------------
 
 dependencies {
-	requiredLibs('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.8.3.231'){ exclude group: "org.slf4j", module: "slf4j-api" }
+	requiredLibs('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.8.3.248'){ exclude group: "org.slf4j", module: "slf4j-api" }
 }
 
 task copyDependencies(type: Copy) {
