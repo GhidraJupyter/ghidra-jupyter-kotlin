@@ -3,7 +3,8 @@ package GhidraJupyterKotlin;
 import ghidra.util.Msg;
 import ghidra.util.task.MonitoredRunnable;
 import ghidra.util.task.TaskMonitor;
-import org.jetbrains.kotlin.jupyter.IkotlinKt;
+import org.jetbrains.kotlinx.jupyter.IkotlinKt;
+import org.jetbrains.kotlinx.jupyter.libraries.EmptyResolutionInfoProvider;
 
 import java.io.*;
 import java.util.*;
@@ -23,7 +24,7 @@ public class KotlinQtConsoleThread implements MonitoredRunnable {
         Msg.info(this, connectionFile.toString());
         IkotlinKt.embedKernel(
                 connectionFile,
-                null,
+                EmptyResolutionInfoProvider.INSTANCE,
                 Collections.singletonList(context));
     }
 
