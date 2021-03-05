@@ -27,3 +27,12 @@ jobs:
       - name: Build with Gradle
         working-directory: ./GhidraJupyterKotlin
         run: gradle buildExtension
+
+      - name: Publish prerelease for commit
+        uses: softprops/action-gh-release@v1
+        if: github.ref == 'refs/heads/main'
+        with:
+          files: ./GhidraJupyterKotlin/dist/*zip
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
