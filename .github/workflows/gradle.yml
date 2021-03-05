@@ -28,6 +28,9 @@ jobs:
         working-directory: ./GhidraJupyterKotlin
         run: gradle buildExtension
 
+      - name: Debug github.ref
+        run: echo ${{github.ref}}
+
       - name: Publish prerelease for commit
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
