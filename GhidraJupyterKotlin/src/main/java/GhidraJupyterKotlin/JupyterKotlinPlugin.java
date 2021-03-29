@@ -102,11 +102,18 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	}
 
 	private void launchQtConsole() {
-		String[] command = {"jupyter", "qtconsole", "--existing", connectionFile.toString()};
+		String[] command = {"jupyter-qtconsole", "--existing", connectionFile.toString()};
 		try {
 			Runtime.getRuntime().exec(command);
 		} catch (IOException e) {
-			e.printStackTrace();
+			Msg.showError(this, null, "QT Console process failed",
+					"The QT Console failed to start because of an IOException.\n" +
+							"Most likely jupyter-qtconsole is not available in your PATH because it wasn't installed\n" +
+							"You can manually run the following command to debug this: \n" +
+							String.join(" ", command) +
+							"\nThe kernel*.json path is optional. Leaving it out will reconnect to your most recent running kernel, which is most likely the correct one.\n" +
+							"You can also run 'jupyter-console --existing' for a terminal based console which is typically already included with a Jupyter install",
+					e);
 		}
 	}
 
