@@ -51,6 +51,8 @@ to open an already running `juptyter-notebook` server or to start a new one.
 
 ### Kotlin QtConsole
 
+This feature requires the Jupyter QT Console to be installed and `jupyter-qtconsole` to be available in your `PATH`. This is a separate package on PyPI and in most distros, so you typically need to explicitly install it.
+
 Click the ![QtConsole] button to open a QtConsole.
 
 Once you click, a Jupyter Kernel will be initialized in the current Ghidra program
