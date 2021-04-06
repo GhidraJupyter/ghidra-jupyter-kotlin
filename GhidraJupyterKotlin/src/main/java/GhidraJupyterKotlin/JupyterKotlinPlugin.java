@@ -133,7 +133,7 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 			if (s != null) {
 				JSONObject obj = new JSONObject(s);
 				return new URI((String) obj.get("url"));
-				}
+			}
 		} catch (IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -197,6 +197,14 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 */
 	protected void locationChanged(ProgramLocation loc) {
 		if (currentLocation != null) {
+			//if the state has null variables but we still get a location changed likely a check in occured so reset state
+			if(cellContext.getState() != null && cellContext.getState().getCurrentAddress() == null)
+			{
+				var state = new GhidraState(tool, tool.getProject(),
+					currentProgram, currentLocation, currentSelection, currentHighlight);
+				cellContext.set(state, TaskMonitor.DUMMY, null);
+			}
+			
 			Msg.info(this, String.format("Location changed to %s", currentLocation));
 			cellContext.setCurrentLocation(currentLocation.getAddress());
 			cellContext.currentContextLocation = loc;
