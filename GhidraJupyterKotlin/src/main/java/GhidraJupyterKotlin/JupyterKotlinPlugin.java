@@ -1,13 +1,5 @@
 package GhidraJupyterKotlin;
 
-import java.awt.*;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.URISyntaxException;
-
 import docking.ActionContext;
 import docking.action.DockingAction;
 import docking.action.MenuData;
@@ -16,7 +8,8 @@ import docking.widgets.OptionDialog;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
 import ghidra.app.script.GhidraState;
-import ghidra.framework.plugintool.*;
+import ghidra.framework.plugintool.PluginInfo;
+import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.program.model.listing.Program;
 import ghidra.program.util.ProgramLocation;
@@ -28,6 +21,13 @@ import org.json.JSONObject;
 import resources.ResourceManager;
 
 import javax.swing.*;
+import java.awt.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 //@formatter:off
 @PluginInfo(
@@ -41,6 +41,11 @@ import javax.swing.*;
 public class JupyterKotlinPlugin extends ProgramPlugin {
 	private final RunManager runManager = new RunManager();
 	private final CellContext cellContext = new CellContext();
+
+	public File getConnectionFile() {
+		return connectionFile;
+	}
+
 	private File connectionFile = null;
 
 	/**
@@ -98,6 +103,25 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 				new MenuData(new String[] { "Jupyter", "Open Jupyter Notebook Server" }, null, null));
 		serverAction.setDescription("Tries to open existing server or offers to start a new one");
 		tool.addAction(serverAction);
+
+		DockingAction interruptAction = new InterruptKernelAction(this);
+		interruptAction.setMenuBarData(
+				new MenuData(new String[] { "Jupyter", "Interrupt Execution" }, null, null));
+		interruptAction.setDescription("Interrupts the currently running kernel if it is executing something");
+		tool.addAction(interruptAction);
+
+
+		DockingAction shutdownAction = new DockingAction("Jupyter Server", getName()) {
+			@Override
+			public void actionPerformed(ActionContext context) {
+				runManager.cancelAllRunnables();
+			}
+		};
+		shutdownAction.setMenuBarData(
+				new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
+		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
+		tool.addAction(shutdownAction);
+
 
 	}
 

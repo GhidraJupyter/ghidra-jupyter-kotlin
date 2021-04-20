@@ -60,6 +60,15 @@ and the Jupyter QtConsole will launch.
 
 ![QtConsole Window](resources/readme/qtconsole_window.png)
 
+#### Caveats
+
+If you want to interrupt the code you executed, the menu action "Interrupt Current Kernel" or "Ctrl+C" will NOT work. It will simply print `Cannot interrupt a kernel I did not start.`
+
+This is a limitation of the Jupyter QT console. To work around this issue, the plugin provides an action `Interrupt Execution` in the `Jupyter` submenu. This will interrupt the curently executed cell:
+
+![Interrupt Demo](resources/readme/interrupt_demo.png)
+
+
 ### Jupyter Notebook
 
 1. Start Jupyter Notebook or Jupyter Lab
