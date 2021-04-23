@@ -22,6 +22,12 @@ jobs:
         with:
                 version: "9.2.2"
 
-      - name: Test Extension
+      - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
-        run: gradle buildExtension # For now this is the best we can do in terms of testing
+        run: gradle buildExtension
+        
+      - name: Install Extension
+        run: unzip ./GhidraJupyterKotlin/dist/*zip -d $GHIDRA_INSTALL_DIR/Ghidra/Extensions
+
+      - name: Test Kernel Startup # Test if the kernel manages to not crash before the timeout terminates it
+        run: timeout 5s $GHIDRA_INSTALL_DIR/support/launch.sh fg Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124))
