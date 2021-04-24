@@ -25,7 +25,13 @@ jobs:
       - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
         run: gradle buildExtension
-        
+
+      - name: Upload built extension as artifact for debugging
+        uses: actions/upload-artifact@v2
+        with:
+                path: ./GhidraJupyterKotlin/dist/*zip
+                retention-days: 1
+
       - name: Install Extension
         run: unzip ./GhidraJupyterKotlin/dist/*zip -d $GHIDRA_INSTALL_DIR/Ghidra/Extensions
 
