@@ -20,8 +20,28 @@ jobs:
           java-version: 1.11
       - uses: er28-0652/setup-ghidra@master
         with:
-                version: "9.2.2"
+                version: "9.2.3"
 
-      - name: Test Extension
+      - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
-        run: gradle buildExtension # For now this is the best we can do in terms of testing
+        run: gradle buildExtension
+
+      - name: Upload built extension as artifact for debugging
+        uses: actions/upload-artifact@v2
+        with:
+                path: ./GhidraJupyterKotlin/dist/*zip
+                retention-days: 1
+
+      - name: Install Extension
+        run: unzip ./GhidraJupyterKotlin/dist/*zip -d $GHIDRA_INSTALL_DIR/Ghidra/Extensions
+
+      - name: Test Kernel Startup # Test if the kernel manages to not crash before the timeout terminates it
+        run: timeout 5s $GHIDRA_INSTALL_DIR/support/launch.sh fg Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124))
+
+      - name: Install jupyter-console for testing evaluation
+        run: sudo apt-get install jupyter-console
+        
+      - name: Test basic evaluation
+        run: |
+                echo "1+1" | jupyter-console --existing=.github/workflows/test-kernel-config.json &
+                timeout 10s $GHIDRA_INSTALL_DIR/support/launch.sh fg Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124)) 

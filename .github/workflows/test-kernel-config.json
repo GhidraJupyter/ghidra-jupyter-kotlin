@@ -1,0 +1,12 @@
+{
+  "shell_port": 38477,
+  "iopub_port": 58089,
+  "stdin_port": 33185,
+  "control_port": 35869,
+  "hb_port": 51201,
+  "ip": "127.0.0.1",
+  "key": "42dcd222-2548fa07db7fec5eaf72e22b",
+  "transport": "tcp",
+  "signature_scheme": "hmac-sha256",
+  "kernel_name": "ghidra-kotlin"
+}
