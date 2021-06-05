@@ -96,6 +96,28 @@ This is a limitation of the Jupyter QT console. To work around this issue, the p
 [QtConsole]:resources/readme/qtconsole.png
 [Notebook]:resources/readme/notebook.png
 
+## Demo Snippets
+
+These snippets can be pasted directly in the QT console or a notebook cell.
+
+### Export x64dbg labels into clipboard
+
+Generate a `x64dbg` script based on the `currentProgram` that labels all the functions in `x64dbg` and stores it in the clipboard
+
+```kotlin
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+
+currentProgram.functionManager.getFunctions(false)
+.map { f -> "lblset 0x${f.entryPoint.offset}, ${f.name}"}.joinToString("\n")
+.let { 
+    val sel = StringSelection(it)
+    Toolkit.getDefaultToolkit().systemClipboard.setContents(sel, sel)
+}
+```
+
+
 ## Building the Ghidra Plugin
 
 1. Get the [kotlin-jupyter-kernel] jars
