@@ -14,9 +14,10 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.11
-      - uses: er28-0652/setup-ghidra@master
+      - uses: fmagin/setup-ghidra@directLink
         with:
           version: "10.0.1"
+          directLink: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_10.0.1_build/ghidra_10.0.1_PUBLIC_20210708.zip
 
       - name: Build with Gradle
         working-directory: ./GhidraJupyterKotlin
