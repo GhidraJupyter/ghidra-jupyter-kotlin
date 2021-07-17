@@ -46,3 +46,7 @@ jobs:
         run: |
                 echo "1+1" | jupyter-console --existing=.github/workflows/test-kernel-config.json &
                 timeout 10s $GHIDRA_INSTALL_DIR/support/launch.sh fg Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124)) 
+
+      - name: Test support for .kt Scripts
+        run: |
+          $GHIDRA_INSTALL_DIR/support/analyzeHeadless /tmp tmp -readonly -preScript $GITHUB_WORKSPACE/GhidraJupyterKotlin/ghidra_scripts/HelloWorldScriptKt.kt
