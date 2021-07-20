@@ -15,23 +15,40 @@
  */
 package ghidra.app.script;
 
-import java.io.*;
+import generic.io.NullPrintWriter;
+import generic.jar.ResourceFile;
+import ghidra.app.util.headless.HeadlessScript;
+import ghidra.util.Msg;
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys;
+import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
+import org.jetbrains.kotlin.cli.common.config.ContentRootsKt;
+import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler;
+import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles;
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment;
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler;
+import org.jetbrains.kotlin.cli.jvm.config.JvmContentRootsKt;
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer;
+import org.jetbrains.kotlin.config.CommonConfigurationKeys;
+import org.jetbrains.kotlin.config.CompilerConfiguration;
+import org.jetbrains.kotlin.utils.PathUtil;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.lang.*;
-
-import javax.tools.JavaFileObject.Kind;
-
-import generic.io.NullPrintWriter;
-import generic.jar.*;
-import ghidra.app.util.headless.HeadlessScript;
-import ghidra.util.Msg;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 
+@SuppressWarnings("unused")
+// This is an ExtensionPoint, so the class loader automatically searches for classes ending in "ScriptProvider"
+// and sets them up
 public class KotlinScriptProvider extends GhidraScriptProvider {
 
     @Override
@@ -48,6 +65,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
     public boolean deleteScript(ResourceFile scriptSource) {
         // Assuming script is in default java package, so using script's base name as class name.
         File clazzFile = getClassFile(scriptSource, GhidraScriptUtil.getBaseName(scriptSource));
+        //noinspection ResultOfMethodCallIgnored
         clazzFile.delete();
         return super.deleteScript(scriptSource);
     }
@@ -65,7 +83,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         compile(sourceFile, writer); // may throw an exception
 
 
-        Class<?> clazz = null;
+        Class<?> clazz;
         try {
             clazz = getScriptClass(sourceFile);
         }
@@ -77,7 +95,14 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
             return getScriptInstance(sourceFile, writer);
         }
 
-        Object object = clazz.newInstance();
+        Object object = null;
+        try {
+            // If clazz is null for some reason crashing with it might make it more obvious where the issue lies
+            //noinspection ConstantConditions
+            object = clazz.getDeclaredConstructor().newInstance();
+        } catch (InvocationTargetException | NoSuchMethodException e) {
+            Msg.error(this, "Unexpected Error during class instantiation, please open an issue ", e);
+        }
         if (object instanceof GhidraScript) {
             GhidraScript script = (GhidraScript) object;
             script.setSourceFile(sourceFile);
@@ -104,8 +129,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         ResourceFile resourceFile =
                 getClassFileByResourceFile(sourceFile, className);
 
-        File file = resourceFile.getFile(false);
-        return file;
+        return resourceFile.getFile(false);
     }
 
     static ResourceFile getClassFileByResourceFile(ResourceFile sourceFile, String rawName) {
@@ -163,112 +187,55 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         return true;
     }
 
-    protected boolean compile(ResourceFile sourceFile, final PrintWriter writer)
+    protected void compile(ResourceFile sourceFile, final PrintWriter writer)
             throws ClassNotFoundException {
-        if (!doCompile(sourceFile, writer)) {
+        if (!doEmbeddedCompile(sourceFile, writer)) {
             writer.flush(); // force any error messages out
             throw new ClassNotFoundException("Unable to compile class: " + sourceFile.getName());
         }
         writer.println("Successfully compiled: " + sourceFile.getName());
-        return true;
     }
 
-    String preparePath(String path) {
-        // `kotlinc` doesn't seem to handle Winodws-style paths (with `\` in them) so
-        // we're ensuring that all path-separators are `/`.
-        return String.format("\"%s\"", path.replace(File.separator, "/"));
+    private K2JVMCompilerArguments getCompilerArgs(K2JVMCompiler compiler){
+        var arguments = compiler.createArguments();
+        var cp = getClassPath();
+
+        arguments.setClasspath(cp);
+
+        return arguments;
+    }
+    private boolean doEmbeddedCompile(ResourceFile sourceFile, final PrintWriter writer) {
+        var rootDisposable = Disposer.newDisposable();
+        var compiler = new K2JVMCompiler();
+        var args = getCompilerArgs(compiler);
+        var compilerConfiguration = new CompilerConfiguration();
+        // TODO: What is a good module name here?
+        compilerConfiguration.put(CommonConfigurationKeys.MODULE_NAME, "SOME_MODULE_NAME");
+        compilerConfiguration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, GhidraMessageCollector.INSTANCE);
+
+        JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, PathUtil.getJdkClassesRootsFromCurrentJre());
+        JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, getClassPathAsFiles());
+        ContentRootsKt.addKotlinSourceRoot(compilerConfiguration, sourceFile.toString());
+
+        var disposable = Disposer.newDisposable();
+
+        KotlinCoreEnvironment env = KotlinCoreEnvironment.createForProduction(
+                disposable, compilerConfiguration, EnvironmentConfigFiles.JVM_CONFIG_FILES);
+
+        return KotlinToJVMBytecodeCompiler.INSTANCE.compileBunchOfSources(env);
     }
 
-    private void writeCompilerArgfile(ResourceFile sourceFile, String outputDirectory, Path compilerArgsPath) throws FileNotFoundException {
-        List<String> args = new ArrayList<String>();
-        args.add("-api-version");
-        args.add("1.3");
-        args.add("-d");
-        args.add(preparePath(outputDirectory));
-        args.add("-classpath");
-        args.add(preparePath(getClassPath()));
-        args.add(preparePath(sourceFile.getAbsolutePath()));
-
-        PrintStream printStream = new PrintStream(new FileOutputStream(compilerArgsPath.toFile()));
-
-
-        printStream.print(String.join(" ", args));
-    }
-
-    private boolean doCompile(ResourceFile sourceFile, final PrintWriter writer) {
-
-        List<ResourceFileJavaFileObject> list = new ArrayList<>();
-        list.add(
-                new ResourceFileJavaFileObject(sourceFile.getParentFile(), sourceFile, Kind.SOURCE));
-
-        String outputDirectory = outputDir(sourceFile).getAbsolutePath();
-        Msg.trace(this, "Compiling script " + sourceFile + " to dir " + outputDirectory);
-
-        Path compilerArgsPath = Paths.get(outputDirectory, "kotlinc.argfile");
-
-        try {
-            writeCompilerArgfile(sourceFile, outputDirectory, compilerArgsPath);
-        } catch (FileNotFoundException e) {
-            String message = String.format("Unable to create compiler arguments file: %s", compilerArgsPath.toAbsolutePath().toString());
-            Msg.error(this, message);
-            writer.println(message);
-            return false;
-        }
-
-        try {
-
-            Process process = launchCompiler(compilerArgsPath);
-
-            StringBuilder processOutput = new StringBuilder();
-
-            try (BufferedReader processOutputReader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()));) {
-                String readLine;
-
-                while ((readLine = processOutputReader.readLine()) != null) {
-                    processOutput.append(readLine);
-                    processOutput.append(System.lineSeparator());
-                }
-
-                process.waitFor();
-            }
-
-            if (process.exitValue() != 0) {
-                String message = processOutput.toString();
-                Msg.error(this, message);
-                writer.write(message);
-                return false;
-            }
-
-            return true;
-        } catch (InterruptedException | IOException e) {
-            String message = "kotlinc invocation failed";
-            Msg.error(this, message);
-            writer.println(message);
-            return false;
-        }
-
+    private List<File> getClassPathAsFiles(){
+        return Arrays.stream(System.getProperty("java.class.path").split(":"))
+                .map(File::new)
+                // There might be files like "ExtensionPoint.manifest" as a classpath entry
+                // the Kotlin compiler tries to open them as .jars (ZIP) and fails, so filter them out
+                .filter(it -> it.getName().endsWith(".jar") || it.isDirectory())
+                .collect(Collectors.toList());
     }
 
     private ResourceFile outputDir(ResourceFile sourceFile) {
         return sourceFile.getParentFile();
-    }
-
-    private Process launchCompiler(Path compilerArgsPath) throws IOException {
-        try {
-            ProcessBuilder builder = new ProcessBuilder("kotlinc", "@" + compilerArgsPath.toAbsolutePath().toString());
-            builder.redirectErrorStream(true);
-            return builder.start();
-
-        } catch (IOException exception) {
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "kotlinc", "@" + compilerArgsPath.toAbsolutePath().toString());
-                builder.redirectErrorStream(true);
-                return builder.start();
-            }
-
-            throw exception;
-        }
     }
 
     private List<Class<?>> getParentClasses(ResourceFile scriptSourceFile) {
@@ -297,8 +264,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         try {
             URL classURL = outputDir(scriptSourceFile).getFile(false).toURI().toURL();
             ClassLoader cl = new URLClassLoader(new URL[] {classURL});
-            Class<?> clazz = cl.loadClass(clazzName);
-            return clazz;
+            return cl.loadClass(clazzName);
         }
         catch (NoClassDefFoundError | ClassNotFoundException e) {
             Msg.error(this, "Unable to find class file for script file: " + scriptSourceFile, e);
@@ -307,50 +273,6 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
             Msg.error(this, "Malformed URL exception:", e);
         }
         return null;
-    }
-
-    private void compileParentClasses(ResourceFile sourceFile, PrintWriter writer) {
-
-        List<Class<?>> parentClasses = getParentClasses(sourceFile);
-        if (parentClasses == null) {
-            // this shouldn't happen, as this method is called after the child class is
-            // re-compiled and thus, all parent classes should still be there.
-            return;
-        }
-
-        if (parentClasses.isEmpty()) {
-            // nothing to do--no parent class to re-compile
-            return;
-        }
-
-        //
-        // re-compile each class's source file
-        //
-
-        // first, reverse the order, so that we compile the highest-level classes first,
-        // and then on down, all the way to the script class
-        Collections.reverse(parentClasses);
-
-        // next, add back to the list the script that was just compiled, as it may need
-        // to be re-compiled after the parent classes are re-compiled
-        Class<?> scriptClass = getScriptClass(sourceFile);
-        if (scriptClass == null) {
-            // shouldn't happen
-            return;
-        }
-        parentClasses.add(scriptClass);
-
-        for (Class<?> parentClass : parentClasses) {
-            ResourceFile parentFile = getSourceFile(parentClass);
-            if (parentFile == null) {
-                continue; // not sure if this can happen (inner-class, maybe?)
-            }
-
-            if (!doCompile(parentFile, writer)) {
-                Msg.error(this, "Failed to re-compile parent class: " + parentClass);
-                return;
-            }
-        }
     }
 
     private ResourceFile getSourceFile(Class<?> c) {
@@ -369,27 +291,17 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         return null;
     }
 
-    private String getSourcePath() {
-        String classpath = System.getProperty("java.class.path");
-        List<ResourceFile> dirs = GhidraScriptUtil.getScriptSourceDirectories();
-        for (ResourceFile dir : dirs) {
-            classpath += (System.getProperty("path.separator") + dir.getAbsolutePath());
-        }
-        return classpath;
-    }
-
     private String getClassPath() {
-        String classpath = System.getProperty("java.class.path");
-        return classpath;
+        return System.getProperty("java.class.path");
     }
 
     @Override
     public void createNewScript(ResourceFile newScript, String category) throws IOException {
         String scriptName = newScript.getName();
         String className = scriptName;
-        int dotpos = scriptName.lastIndexOf('.');
-        if (dotpos >= 0) {
-            className = scriptName.substring(0, dotpos);
+        int dotPos = scriptName.lastIndexOf('.');
+        if (dotPos >= 0) {
+            className = scriptName.substring(0, dotPos);
         }
         PrintWriter writer = new PrintWriter(new FileWriter(newScript.getFile(false)));
 

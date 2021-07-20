@@ -21,7 +21,7 @@
 import ghidra.app.script.GhidraScript
 
 class HelloWorldScriptKt : GhidraScript() {
-    @Throws(Exception::class)
+//    @Throws(Exception::class)
     override fun run() {
         println("Hello, Kotlin!")
     }
