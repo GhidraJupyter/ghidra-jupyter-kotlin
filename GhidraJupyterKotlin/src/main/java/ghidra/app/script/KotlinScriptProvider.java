@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.cli.jvm.config.JvmContentRootsKt;
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer;
 import org.jetbrains.kotlin.config.CommonConfigurationKeys;
 import org.jetbrains.kotlin.config.CompilerConfiguration;
+import org.jetbrains.kotlin.config.JVMConfigurationKeys;
 import org.jetbrains.kotlin.utils.PathUtil;
 
 import java.io.File;
@@ -206,6 +207,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         return arguments;
     }
     private boolean doEmbeddedCompile(ResourceFile sourceFile, final PrintWriter writer) {
+        Msg.info(this, "Compiling sourceFile: " + sourceFile.getAbsolutePath());
         var rootDisposable = Disposer.newDisposable();
         var compiler = new K2JVMCompiler();
         var args = getCompilerArgs(compiler);
@@ -214,11 +216,10 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         compilerConfiguration.put(CommonConfigurationKeys.MODULE_NAME, "SOME_MODULE_NAME");
         var collector = new KotlinCompilerMessageCollector(sourceFile);
         compilerConfiguration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, collector);
-
         JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, PathUtil.getJdkClassesRootsFromCurrentJre());
         JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, getClassPathAsFiles());
         ContentRootsKt.addKotlinSourceRoot(compilerConfiguration, sourceFile.toString());
-
+        compilerConfiguration.put(JVMConfigurationKeys.OUTPUT_DIRECTORY, outputDir(sourceFile).getFile(false));
         var disposable = Disposer.newDisposable();
 
         KotlinCoreEnvironment env = KotlinCoreEnvironment.createForProduction(
@@ -270,6 +271,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         }
         catch (NoClassDefFoundError | ClassNotFoundException e) {
             Msg.error(this, "Unable to find class file for script file: " + scriptSourceFile, e);
+
         }
         catch (MalformedURLException e) {
             Msg.error(this, "Malformed URL exception:", e);
