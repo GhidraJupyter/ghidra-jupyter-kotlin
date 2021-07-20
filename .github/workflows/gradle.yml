@@ -49,4 +49,4 @@ jobs:
 
       - name: Test support for .kt Scripts
         run: |
-          $GHIDRA_INSTALL_DIR/support/analyzeHeadless /tmp tmp -readonly -preScript $GITHUB_WORKSPACE/GhidraJupyterKotlin/ghidra_scripts/HelloWorldScriptKt.kt
+          $GHIDRA_INSTALL_DIR/support/analyzeHeadless /tmp tmp -readonly -preScript $GITHUB_WORKSPACE/GhidraJupyterKotlin/ghidra_scripts/HelloWorldScriptKt.kt | grep "INFO  HelloWorldScriptKt.kt> Hello, Kotlin! (GhidraScript)"
