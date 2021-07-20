@@ -22,6 +22,7 @@ import ghidra.util.Msg;
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys;
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
 import org.jetbrains.kotlin.cli.common.config.ContentRootsKt;
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler;
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment;
@@ -211,7 +212,8 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         var compilerConfiguration = new CompilerConfiguration();
         // TODO: What is a good module name here?
         compilerConfiguration.put(CommonConfigurationKeys.MODULE_NAME, "SOME_MODULE_NAME");
-        compilerConfiguration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, GhidraMessageCollector.INSTANCE);
+        var collector = new KotlinCompilerMessageCollector(sourceFile);
+        compilerConfiguration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, collector);
 
         JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, PathUtil.getJdkClassesRootsFromCurrentJre());
         JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, getClassPathAsFiles());
