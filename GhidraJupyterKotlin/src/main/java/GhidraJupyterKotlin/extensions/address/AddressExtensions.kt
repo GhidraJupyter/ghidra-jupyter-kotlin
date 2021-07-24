@@ -30,6 +30,10 @@ operator fun Address.minus(rhs: Int): Address {
     return this.subtractNoWrap(rhs.toLong())
 }
 
+operator fun Address.minus(rhs: Address): Long {
+    return this.subtract(rhs)
+}
+
 /**
  * `currentAddress..otherAddress` gives an AddressRange with currentAddress as start, and otherAddress as end
  */
