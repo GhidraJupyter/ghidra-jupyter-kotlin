@@ -208,6 +208,11 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
     }
     private boolean doEmbeddedCompile(ResourceFile sourceFile, final PrintWriter writer) {
         Msg.info(this, "Compiling sourceFile: " + sourceFile.getAbsolutePath());
+
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            System.getProperties().setProperty("idea.io.use.nio2", java.lang.Boolean.TRUE.toString());
+        }
+
         var rootDisposable = Disposer.newDisposable();
         var compiler = new K2JVMCompiler();
         var args = getCompilerArgs(compiler);
@@ -229,7 +234,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
     }
 
     private List<File> getClassPathAsFiles(){
-        return Arrays.stream(System.getProperty("java.class.path").split(":"))
+        return Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
                 .map(File::new)
                 // There might be files like "ExtensionPoint.manifest" as a classpath entry
                 // the Kotlin compiler tries to open them as .jars (ZIP) and fails, so filter them out
