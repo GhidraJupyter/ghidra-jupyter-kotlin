@@ -100,6 +100,67 @@ This is a limitation of the Jupyter QT console. To work around this issue, the p
 
 These snippets can be pasted directly in the QT console or a notebook cell.
 
+### Kotlin Extensions
+
+[Extensions](https://kotlinlang.org/docs/extensions.html#extensions-are-resolved-statically) are a Kotlin feature which allows extending existing classes with new methods, properties or operators. This allows various convience features, especially combined with other Kotlin Features like operator overloading and easily providing lambdas. They need to be explicitly imported in your script/kernel before using them:
+
+```kotlin
+// Import all extensions in the GhidraJupyterKotlin.extensions.address package
+import GhidraJupyterKotlin.extensions.address.*
+```
+
+If you end up writing any kind of extension method/property/operator we would be happy to recieve a PR.
+Not all extension provided are documented in the README.md, check the [extensions folder](./GhidraJupyterKotlin/src/main/java/GhidraJupyterKotlin/extensions) for all of them. Nearly all of them are fairly simple (a few lines at most) so they can also serve as good examples how to write your own.
+
+#### Explicit Database Transactions
+
+Unlike the Jython REPL, the Kotlin Kernel does NOT wrap each cell in an implicit Database transaction. Any attempt to modify the Database will result in `NoTransactionException: Transaction has not been started`.
+
+Instead there is an extension method on the `UndoableDomainObject` interface, that makes Database transactions explicit with minimal syntactic overhead.
+
+```kotlin
+// Regular usage without extension via the official Ghidra API
+val transactionID = currentProgram.startTransaction("Transaction Description")
+/* your code modifying the DB */
+currentProgram.name = "NewName"
+currentProgram.endTransaction(transactionID, true) // true means the changes should be commited to the DB
+
+// Using the extension
+import GhidraJupyterKotlin.extensions.misc.*
+
+currentProgram.runTransaction("Transaction Description") {
+	/* your code modifying the DB */
+	currentProgram.name = "NewName"
+}
+
+
+// There is another extension that only takes a function and uses a default transaction description
+currentProgram.runTransaction {
+	currentProgram.name = "NewName
+}
+
+```
+
+If the code throws any kind of Exception the transaction will be aborted, i.e. `.endTransaction` will be called with `commit=false`.
+
+
+#### Address Arithmetic with Operators
+
+Unlike Java, Kotlin supports [operator overloading](https://kotlinlang.org/docs/operator-overloading.html). This can be used to make calculations involving addresses more comfortable:
+
+```kotlin
+import GhidraJupyterKotlin.extensions.address.*
+import ghidra.program.model.address.Address
+import ghidra.program.model.address.AddressRange
+
+val x: Address = currentAddress + 0x10  // Address + Offset (Int or Long)
+val y: Address = currentAddress - 0x10  // Address - Offset (Int or Long)
+val z: Address = x - y 			// Difference between Addresses
+
+val range: AddressRange = y..x // The range of addresses between currentAddress-0x10 and currentAddress+0x10
+
+```
+
 ### Export x64dbg labels into clipboard
 
 Generate a `x64dbg` script based on the `currentProgram` that labels all the functions in `x64dbg` and stores it in the clipboard
