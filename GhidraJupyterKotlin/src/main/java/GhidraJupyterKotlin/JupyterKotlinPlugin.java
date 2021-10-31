@@ -8,6 +8,8 @@ import docking.widgets.OptionDialog;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
 import ghidra.app.script.GhidraState;
+import ghidra.framework.options.OptionType;
+import ghidra.framework.options.Options;
 import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
@@ -39,8 +41,11 @@ import java.net.URISyntaxException;
 )
 //@formatter:on
 public class JupyterKotlinPlugin extends ProgramPlugin {
+	private static final String OPTION_LAST_URI = "LAST_URI";
+	private static final String PLUGIN_NAME = "JupyterKotlinPlugin";
 	private final RunManager runManager = new RunManager();
 	private final CellContext cellContext = new CellContext();
+	private Options options;
 
 	public File getConnectionFile() {
 		return connectionFile;
@@ -55,8 +60,10 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 */
 	public JupyterKotlinPlugin(PluginTool tool) {
 		super(tool, true, true);
+		registerActions();
+	}
 
-
+	private void registerActions(){
 		DockingAction action = new DockingAction("Kotlin QtConsole", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
@@ -104,6 +111,18 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		serverAction.setDescription("Tries to open existing server or offers to start a new one");
 		tool.addAction(serverAction);
 
+		DockingAction defaultNotebookAction = new DockingAction("Default Notebook", getName()) {
+			@Override
+			public void actionPerformed(ActionContext context) {
+				openDefaultNotebook();
+			}
+		};
+
+		defaultNotebookAction.setMenuBarData(
+				new MenuData(new String[] { "Jupyter", "Open Default Notebook" }, null, null));
+		defaultNotebookAction.setDescription("Open Default Notebook");
+		tool.addAction(defaultNotebookAction);
+
 		DockingAction interruptAction = new InterruptKernelAction(this);
 		interruptAction.setMenuBarData(
 				new MenuData(new String[] { "Jupyter", "Interrupt Execution" }, null, null));
@@ -121,8 +140,6 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 				new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
 		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
 		tool.addAction(shutdownAction);
-
-
 	}
 
 	private void launchQtConsole() {
@@ -164,20 +181,23 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		return null;
 	}
 
+	private void openURI(URI uri){
+		if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+			try {
+				Desktop.getDesktop().browse(uri);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} else {
+			Msg.error(this,
+					"Notebook couldn't be opened because environment doesn't support opening URLs");
+		}
+	}
 	private void openNotebookServer() {
 		URI uri = checkForRunningNotebookServer();
 
 		if (uri !=null){
-			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-				try {
-					Desktop.getDesktop().browse(uri);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			} else {
-				Msg.error(this,
-						"Notebook couldn't be opened because environment doesn't support opening URLs");
-			}
+			openURI(uri);
 		} else {
 			if (OptionDialog.showYesNoDialog(null,
 					"Start new Jupyter server?",
@@ -199,12 +219,42 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		}
 	}
 
+	private void openDefaultNotebook(){
+		var value = options.getString(OPTION_LAST_URI, "");
+		if (value.equals("")){
+			var msg = String.format("The URI option was not set, please go to\n" +
+							"'Edit'-> 'Options for %s' -> %s\n" +
+							"and set the option to the full URL your default browser should navigate to", currentProgram.getName(), PLUGIN_NAME);
+			Msg.showError(this, null,"No URI set in options", msg);
+			return;
+		}
+		try {
+			var uri = new URI(value);
+			if (uri.getScheme().equals("http")) {
+				var runnable = new NotebookThread(cellContext, tool);
+				runManager.runNow(runnable, "Notebook");
+				openURI(uri);
+			}
+			else {
+				Msg.showError(this, null, "Invalid URI", "Scheme of the URI option isn't http, this seems wrong");
+			}
+		} catch (URISyntaxException e) {
+			Msg.showError(this, null, "Last URI Option is invalid",
+					"Last URI in options was not a valid URI and parsing it threw an exception", e);
+		}
+
+
+	}
 	@Override
 	protected void programActivated(Program activatedProgram) {
 		Msg.info(this, "Program activated");
 		var state = new GhidraState(tool, tool.getProject(),
 				currentProgram, currentLocation, currentSelection, currentHighlight);
 		cellContext.set(state, TaskMonitor.DUMMY, null);
+
+		options = activatedProgram.getOptions(PLUGIN_NAME);
+		options.registerOption(OPTION_LAST_URI, OptionType.STRING_TYPE, "", null,
+				"Saved URI");
 	}
 
 	protected void programClosed(Program program) {
