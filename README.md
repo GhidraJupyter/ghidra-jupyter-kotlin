@@ -116,32 +116,34 @@ Not all extension provided are documented in the README.md, check the [extension
 
 Unlike the Jython REPL, the Kotlin Kernel does NOT wrap each cell in an implicit Database transaction. Any attempt to modify the Database will result in `NoTransactionException: Transaction has not been started`.
 
-Instead there is an extension method on the `UndoableDomainObject` interface, that makes Database transactions explicit with minimal syntactic overhead.
+Instead there is an extension method on the `UndoableDomainObject` interface, that makes Database transactions explicit with minimal syntactic overhead:
 
 ```kotlin
-// Regular usage without extension via the official Ghidra API
+import GhidraJupyterKotlin.extensions.misc.*
+
+currentProgram.runTransaction {
+	/* your code modifying the DB */
+	currentProgram.name = "NewName
+}
+```
+
+If the code throws any kind of Exception the transaction will be aborted and the changes will be discarded.
+
+This method can also be called with a transaction description:
+```kotlin
+currentProgram.runTransaction("Transaction Description") {
+	currentProgram.name = "NewName"
+}
+```
+
+For comparison, the regular Ghidra API for transactions:
+```kotlin
 val transactionID = currentProgram.startTransaction("Transaction Description")
 /* your code modifying the DB */
 currentProgram.name = "NewName"
 currentProgram.endTransaction(transactionID, true) // true means the changes should be commited to the DB
-
-// Using the extension
-import GhidraJupyterKotlin.extensions.misc.*
-
-currentProgram.runTransaction("Transaction Description") {
-	/* your code modifying the DB */
-	currentProgram.name = "NewName"
-}
-
-
-// There is another extension that only takes a function and uses a default transaction description
-currentProgram.runTransaction {
-	currentProgram.name = "NewName
-}
-
 ```
 
-If the code throws any kind of Exception the transaction will be aborted, i.e. `.endTransaction` will be called with `commit=false`.
 
 
 #### Address Arithmetic with Operators
