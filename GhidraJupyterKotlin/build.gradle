@@ -19,6 +19,10 @@ plugins {
 	id 'idea'
 }
 
+
+compileKotlin {
+	kotlinOptions.jvmTarget = "11"
+}
 configurations {
     requiredLibs //.extendsFrom implementation
 }
@@ -51,16 +55,11 @@ else {
 //----------------------END "DO NOT MODIFY" SECTION-------------------------------
 
 dependencies {
-	requiredLibs('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.9.1-8-1'){ exclude group: "org.slf4j", module: "slf4j-api" }
+	api('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.10.3-35-1'){ exclude group: "org.slf4j", module: "slf4j-api" }
 	// Needed for compiling
 	// after building they are already included as part of the recursive dependencies of kotlin-jupyter-kernel
 	api group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "$kotlinVersion"
-	compile group: 'org.json', name: 'json', version: '20210307'
+	api group: 'org.json', name: 'json', version: '20210307'
 	api group: 'org.zeromq', name: 'jeromq', version: '0.5.2'
-}
-
-task copyDependencies(type: Copy) {
-    from configurations.requiredLibs
-    into 'lib'
 }
 buildExtension.dependsOn(copyDependencies)
