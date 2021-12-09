@@ -9,7 +9,7 @@ import org.jetbrains.kotlinx.jupyter.libraries.EmptyResolutionInfoProvider;
 import java.io.*;
 import java.util.*;
 
-public class KotlinQtConsoleThread implements MonitoredRunnable {
+public class KotlinQtConsoleThread implements KernelThread {
 
     private final CellContext context;
     private final File connectionFile;
@@ -28,4 +28,8 @@ public class KotlinQtConsoleThread implements MonitoredRunnable {
                 Collections.singletonList(context));
     }
 
+    @Override
+    public File getConnectionFile() {
+        return connectionFile;
+    }
 }

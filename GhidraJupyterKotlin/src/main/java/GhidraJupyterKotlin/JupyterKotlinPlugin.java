@@ -19,6 +19,7 @@ import ghidra.program.util.ProgramSelection;
 import ghidra.util.Msg;
 import ghidra.util.task.RunManager;
 import ghidra.util.task.TaskMonitor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.json.JSONObject;
 import resources.ResourceManager;
 
@@ -42,17 +43,20 @@ import java.net.URISyntaxException;
 //@formatter:on
 public class JupyterKotlinPlugin extends ProgramPlugin {
 	private static final String OPTION_LAST_URI = "LAST_URI";
+	private static final String DEFAULT_URI = "http://localhost:8888/tree";
+	private static final String OPTION_CONSOLE_CMD = "CONSOLE_CMD";
+	private static final String DEFAULT_CONSOLE_CMD = "jupyter-qtconsole --existing";
 	private static final String PLUGIN_NAME = "JupyterKotlinPlugin";
 	private final RunManager runManager = new RunManager();
 	private final CellContext cellContext = new CellContext();
-	private Options options;
+	private Options programOptions;
+	private Options toolOptions;
 
 	public File getConnectionFile() {
-		return connectionFile;
+		return (currentKernel != null) ? currentKernel.getConnectionFile() : null;
 	}
 
-	private File connectionFile = null;
-
+	private KernelThread currentKernel = null;
 	/**
 	 * Plugin constructor.
 	 * 
@@ -60,6 +64,13 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 */
 	public JupyterKotlinPlugin(PluginTool tool) {
 		super(tool, true, true);
+		toolOptions = tool.getOptions(PLUGIN_NAME);
+		toolOptions.registerOption(OPTION_CONSOLE_CMD, OptionType.STRING_TYPE, DEFAULT_CONSOLE_CMD, null,
+				"Default Console command to execute (connection file will be appended)");
+		toolOptions.registerOption(OPTION_LAST_URI, OptionType.STRING_TYPE, DEFAULT_URI, null,
+				"Default URI to open when using the GUI shortcut. " +
+						"This can be set to the full path to a specific notebook " +
+						"that should open directly after the kernel starts waiting");
 		registerActions();
 	}
 
@@ -67,10 +78,9 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		DockingAction action = new DockingAction("Kotlin QtConsole", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
-				if (connectionFile == null) {
-					connectionFile = ConnectionFile.create();
-					var runable = new KotlinQtConsoleThread(cellContext, connectionFile);
-					runManager.runNow(runable, "Kotlin kernel");
+				if (getConnectionFile() == null) {
+					currentKernel = new KotlinQtConsoleThread(cellContext, ConnectionFile.create());
+					runManager.runNow(currentKernel, "Kotlin kernel");
 				}
 				launchQtConsole();
 			}
@@ -86,8 +96,8 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		DockingAction notebookAction = new DockingAction("Kotlin Notebook", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
-				var runnable = new NotebookThread(cellContext, tool);
-				runManager.runNow(runnable, "Notebook");
+				currentKernel = new NotebookThread(cellContext, tool);
+				runManager.runNow(currentKernel, "Notebook");
 			}
 		};
 		ImageIcon kernelIcon = ResourceManager.loadImage("images/notebook.png");
@@ -143,13 +153,16 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	}
 
 	private void launchQtConsole() {
-		String[] command = {"jupyter-qtconsole", "--existing", connectionFile.toString()};
+		String[] console = toolOptions.getString(OPTION_CONSOLE_CMD,
+				DEFAULT_CONSOLE_CMD).split(" ");
+		String[] command = ArrayUtils.add(console, currentKernel.getConnectionFile().toString());
 		try {
 			Runtime.getRuntime().exec(command);
 		} catch (IOException e) {
 			Msg.showError(this, null, "QT Console process failed",
-					"The QT Console failed to start because of an IOException.\n" +
+					"The console command failed to start because of an IOException.\n" +
 							"Most likely jupyter-qtconsole is not available in your PATH because it wasn't installed\n" +
+							"or your custom command has some issues\n" +
 							"You can manually run the following command to debug this: \n" +
 							String.join(" ", command) +
 							"\nThe kernel*.json path is optional. Leaving it out will reconnect to your most recent running kernel, which is most likely the correct one.\n" +
@@ -220,19 +233,28 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	}
 
 	private void openDefaultNotebook(){
-		var value = options.getString(OPTION_LAST_URI, "");
-		if (value.equals("")){
+		var programValue = programOptions.getString(OPTION_LAST_URI, "");
+		var toolValue = toolOptions.getString(OPTION_LAST_URI, "");
+		var value = "";
+		if (programValue.equals("") && toolValue.equals("")){
 			var msg = String.format("The URI option was not set, please go to\n" +
 							"'Edit'-> 'Options for %s' -> %s\n" +
 							"and set the option to the full URL your default browser should navigate to", currentProgram.getName(), PLUGIN_NAME);
 			Msg.showError(this, null,"No URI set in options", msg);
 			return;
 		}
+		else if (programValue.equals("")){
+			Msg.info(this, "No program specific notebook configured, but default option is available");
+			value = toolValue;
+		}
+		else {
+			value = programValue;
+		}
 		try {
 			var uri = new URI(value);
 			if (uri.getScheme().equals("http")) {
-				var runnable = new NotebookThread(cellContext, tool);
-				runManager.runNow(runnable, "Notebook");
+				currentKernel = new NotebookThread(cellContext, tool);
+				runManager.runNow(currentKernel, "Notebook");
 				openURI(uri);
 			}
 			else {
@@ -252,8 +274,8 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 				currentProgram, currentLocation, currentSelection, currentHighlight);
 		cellContext.set(state, TaskMonitor.DUMMY, null);
 
-		options = activatedProgram.getOptions(PLUGIN_NAME);
-		options.registerOption(OPTION_LAST_URI, OptionType.STRING_TYPE, "", null,
+		programOptions = activatedProgram.getOptions(PLUGIN_NAME);
+		programOptions.registerOption(OPTION_LAST_URI, OptionType.STRING_TYPE, "", null,
 				"Saved URI");
 	}
 
