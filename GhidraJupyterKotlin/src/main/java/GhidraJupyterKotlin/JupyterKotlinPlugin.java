@@ -144,6 +144,7 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 			@Override
 			public void actionPerformed(ActionContext context) {
 				runManager.cancelAllRunnables();
+				currentKernel = null;
 			}
 		};
 		shutdownAction.setMenuBarData(
