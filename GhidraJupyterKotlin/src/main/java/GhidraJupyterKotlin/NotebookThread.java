@@ -16,7 +16,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
 
-public class NotebookThread implements MonitoredRunnable {
+public class NotebookThread implements KernelThread {
     /**
      * Steps:
      * 1. Create proxy file
@@ -27,6 +27,13 @@ public class NotebookThread implements MonitoredRunnable {
 
     private final CellContext context;
     private final PluginTool tool;
+
+
+    @Override
+    public File getConnectionFile() {
+        return connectionFile;
+    }
+
     private File connectionFile = null;
 
     public NotebookThread(CellContext ctx, PluginTool tool) {
