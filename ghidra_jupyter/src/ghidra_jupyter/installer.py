@@ -95,11 +95,11 @@ def install_extension(
                     print("ERROR: Major version of Ghidra (%s) and Extension (%s) don't match, refusing to install" %
                           (ghidra_version, extension_version))
                     return
-                elif ghidra_version >= extension_version:
+                elif ghidra_version > extension_version:
                     print("WARNING: Your Ghidra version is newer than the extension version")
                     print("There could be some unresolved compatibility issue or we forgot to bump the CI version")
                     print("Please check https://github.com/%s" % REPO)
-                elif extension_version >= ghidra_version:
+                elif extension_version > ghidra_version:
                     print("!WARNING! " * 10)
                     print("WARNING: Ghidra Version is %s, but extension_version is %s"
                           % (ghidra_version, extension_version))
