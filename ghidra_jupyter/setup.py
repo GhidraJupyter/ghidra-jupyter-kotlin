@@ -38,7 +38,7 @@ PACKAGES = find_packages(where="src")
 INSTALL_REQUIRES = get_requirements()
 setup(
     name="ghidra_jupyter",
-    version="1.0.0",
+    version="1.1.0",
     packages=PACKAGES,
     package_dir={"": "src"},
     include_package_data=True,
