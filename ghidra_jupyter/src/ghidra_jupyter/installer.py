@@ -4,14 +4,16 @@ import re
 import shutil
 import zipfile
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Optional, Tuple
+from packaging import version
+from pathlib import Path
 
 import requests
 from tqdm import tqdm
 
 REPO = "GhidraJupyter/ghidra-jupyter-kotlin"
-NAME_PATTERN = r"GhidraJupyterKotlin[v0-9.\-_]*\.zip"
-
+# NAME_PATTERN = r"GhidraJupyterKotlin[v0-9.\-_]*\.zip"
+NAME_PATTERN = r"ghidra_(.+)_PUBLIC_(\d{8})_GhidraJupyterKotlin.zip"
 
 def download_file(url: str, path: str):
     with requests.get(url, stream=True) as response:
@@ -47,20 +49,34 @@ def _get_ghidra_dir(ghidra_install_dir: Optional[str]) -> str:
     return ghidra_install_dir or os.environ.get("GHIDRA_INSTALL_DIR")
 
 
-def get_download_url(repo, name_pattern):
+def _get_ghidra_version(ghidra_install_dir: Optional[str]) -> version.Version:
+    app_properties = os.path.join(ghidra_install_dir, "Ghidra", "application.properties")
+    with open(app_properties, "r") as f:
+        for line in f.readlines():
+            key, value = line.split("=")
+            if key == "application.version":
+                return version.parse(value)
+
+
+def get_download_url(repo, name_pattern) -> Tuple[str, version.Version]:
     release = requests.get(f"https://api.github.com/repos/{repo}/releases/latest")
     release.raise_for_status()
     for asset in release.json()["assets"]:
-        if re.match(name_pattern, asset["name"]):
-            return asset["browser_download_url"]
+        m = re.match(name_pattern, asset["name"])
+        if m:
+            extension_version = version.parse(m.group(1))
+            return asset["browser_download_url"], extension_version
+
 
 
 def install_extension(
     ghidra_install_dir: Optional[str],
     extension_path: Optional[str],
-    extenion_url: Optional[str],
+    extension_url: Optional[str],
 ):
     ghidra_install_dir = _get_ghidra_dir(ghidra_install_dir)
+    ghidra_version = _get_ghidra_version(ghidra_install_dir)
+
     if not ghidra_install_dir:
         print("Missing $GHIDRA_INSTALL_DIR")
         return
@@ -71,9 +87,28 @@ def install_extension(
     else:
         with TemporaryDirectory() as tempdir:
             extension_path = os.path.join(tempdir, "Extension.zip")
-            extenion_url = extenion_url or get_download_url(REPO, NAME_PATTERN)
-            print(f"Downloading Ghidra extension from {extenion_url}")
-            download_file(extenion_url, extension_path)
+            if extension_url is None:
+                extension_url, extension_version = get_download_url(REPO, NAME_PATTERN)
+                print("Detected Ghidra Version: ", ghidra_version)
+                print("Extension Version: ", extension_version)
+                if extension_version.major != ghidra_version.major:
+                    print("ERROR: Major version of Ghidra (%s) and Extension (%s) don't match, refusing to install" %
+                          (ghidra_version, extension_version))
+                    return
+                elif ghidra_version >= extension_version:
+                    print("WARNING: Your Ghidra version is newer than the extension version")
+                    print("There could be some unresolved compatibility issue or we forgot to bump the CI version")
+                    print("Please check https://github.com/%s" % REPO)
+                elif extension_version >= ghidra_version:
+                    print("!WARNING! " * 10)
+                    print("WARNING: Ghidra Version is %s, but extension_version is %s"
+                          % (ghidra_version, extension_version))
+                    print("WARNING: Extension will still be installed, but might encounter unpredictable issues. "
+                          "Please update your Ghidra install or manually install an older release")
+                    print("!WARNING! " * 10)
+
+            print(f"Downloading Ghidra extension from {extension_url}")
+            download_file(extension_url, extension_path)
             print("Download complete.")
             _install_from_path(ghidra_install_dir, extension_path)
 
