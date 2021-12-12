@@ -282,9 +282,11 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 
 	protected void programClosed(Program program) {
 		Msg.info(this, "Program closed");
-		var state = new GhidraState(tool, tool.getProject(),
-				null, null, null, null);
-		cellContext.set(state, TaskMonitor.DUMMY, null);
+		if (cellContext.getCurrentProgram() == program) {
+			var state = new GhidraState(tool, tool.getProject(),
+					null, null, null, null);
+			cellContext.set(state, TaskMonitor.DUMMY, null);
+		}
 	}
 
 	/**
