@@ -1,3 +1,4 @@
 .gradle
 gradle/
 *.class
+META-INF
