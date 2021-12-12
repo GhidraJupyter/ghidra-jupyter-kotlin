@@ -2,3 +2,5 @@
 gradle/
 *.class
 META-INF
+ghidra_jupyter/build/
+ghidra_jupyter/dist/

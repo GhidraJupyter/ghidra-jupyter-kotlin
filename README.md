@@ -31,8 +31,8 @@
    pip install ghidra-jupyter
     ```
    
-2. Download `GhidraJupyterKotlin-1.0.0.zip` from our releases page
-3. Place the zip under `$GHIDRA_INSTALL_DIR/Ghidra/Extensions/`
+2. Download the [latest release](https://github.com/GhidraJupyter/ghidra-jupyter-kotlin/releases/latest) zip from our releases page
+3. Place the zip under `$GHIDRA_INSTALL_DIR/Ghidra/Extensions/` or select it via the GUI dialog to install extensions
    
 ## Usage
 
@@ -56,18 +56,35 @@ This feature requires the Jupyter QT Console to be installed and `jupyter-qtcons
 Click the ![QtConsole] button to open a QtConsole.
 
 Once you click, a Jupyter Kernel will be initialized in the current Ghidra program
-and the Jupyter QtConsole will launch.
+and the Jupyter QtConsole will launch. If there is already a notebook kernel running,
+the console will use the same kernel (i.e. share the variables, functions, etc)
 
 ![QtConsole Window](resources/readme/qtconsole_window.png)
 
 #### Caveats
-
+Work/ghidra-angr-worker/AWD_GUI_Integration-Copy2.ipynb
 If you want to interrupt the code you executed, the menu action "Interrupt Current Kernel" or "Ctrl+C" will NOT work. It will simply print `Cannot interrupt a kernel I did not start.`
 
 This is a limitation of the Jupyter QT console. To work around this issue, the plugin provides an action `Interrupt Execution` in the `Jupyter` submenu. This will interrupt the curently executed cell:
 
 ![Interrupt Demo](resources/readme/interrupt_demo.png)
 
+### Jupyter Terminal Console
+
+If you want to use the terminal based `jupyter-console` instead,
+open a CodeBrowser instance and in the top bar navigate to
+
+`Edit -> Tool Options ... -> JupyterKotlinPlugin`
+
+![Options](resources/options.png)
+
+Here you can set the `CONSOLE_CMD` to whatever command opens your preferred terminal and runs
+`jupyter-console --existing` in it. The connection file will be appended to it, so the full command called later will be
+something like:
+
+```sh
+kitty -- jupyter-console --existing /home/user/.local/share/jupyter/runtime/kernel-3af276c1-ac24-4368-bbb4-94cdf082fa7a.json
+```
 
 ### Jupyter Notebook
 
@@ -183,38 +200,42 @@ currentProgram.functionManager.getFunctions(false)
 
 ## Building the Ghidra Plugin
 
-1. Get the [kotlin-jupyter-kernel] jars
-   1. Install the Kotlin Jupyter kernel
-      ```bash
-      pip install kotlin-jupyter-kernel
-      ```
-   2. Copy the JARs over to `GhidraJupyterKotlin/lib`
-      1. First, we use `pip show kotlin-jupyter-kernel` to see where it was installed
-         ```bash
-         pip show kotlin-jupyter-kernel
-         ```
-      
-      2. From the Location line (usually site-packages) we go to the run-kotlin-kernel package and copy the jars.
-         So `site-packages/run-kotlin-kernel/jars/*`. The contents should be:
-         ```text
-         annotations-13.0.jar
-         jupyter-lib-0.8.3.1.jar
-         kotlin-jupyter-kernel-0.8.3.1.jar
-         kotlin-reflect-1.4.30-dev-2223.jar
-         kotlin-script-runtime-1.4.30-dev-2223.jar
-         kotlin-stdlib-1.4.30-dev-2223.jar
-         kotlin-stdlib-common-1.4.30-dev-2223.jar
-         ```
-   3. Build the Ghidra plugin
-      ```bash
-      cd GhidraJupyterKotlin
-      gradle
-      ```
-   4. Install the plugin using the ghidra-jupyter installer
-      ```bash
-      ghidra-jupyter install-extension --extension-path GhidraJupyterKotlin/dist/<today's-zip-file>
-      ```
-      
+(requires at least Ghidra 10.1 to be this easy, earlier versions require copying libraries around)
+1. Run `gradlew buildExtension -PGHIDRA_INSTALL_DIR=/path/to/ghidra_10.1_PUBLIC` and gradle should take care of
+pulling the dependencies, copying them to the `./lib` folder, and building the extension zip to
+`./GhidraJupyterKotlin/dist/*zip`
+2. Install the plugin using the ghidra-jupyter installer
+   ```bash
+   ghidra-jupyter install-extension --extension-path GhidraJupyterKotlin/dist/<today's-zip-file>
+   ```
+   
+### Development (Ghidra Extension itself, Kotlin GhidraScripts and Kotlin Extension Methods)
+
+Developing this extension is only tested and supported with IntelliJ, which isn't officially supported as an IDE for
+Ghidra Extensions.
+
+First make sure that your `GHIDRA_INSTALL_DIR` variable is set in some way that gradle recognizes,
+e.g. by adding the  line `GHIDRA_INSTALL_DIR=/path/to/ghidra_10.1_PUBLIC/`
+to the global gradle config in `$HOME/.gradle/gradle.properties`
+
+Now it should be enough to import the `settings.gradle` file via the
+IntelliJ IDEA "Project From Existing Sources" menu.
+IntelliJ will import the gradle project, fetch dependencies and
+afterwards you can click the `Build` button (Hammer in the top right menu) and it should compile successfully.
+If there is an error during importing or building please open an issue here on GitHub.
+
+The repo also includes a run configuration under `.idea/runConfigurations/Ghidra_GUI.xml` that IntelliJ should
+automatically pick up after the project was created, which will add a run configuration called `Ghidra GUI`.
+This run configuration will launch Ghidra  with the current
+development code of the plugin. It will look fairly ugly because none of the VM options that influence that are included.
+To remedy this, generate the VM options for your system and set them as the VM options in the run configuration.
+
+```sh
+cd $GHIDRA_INSTALL_DIR
+java -cp ./support/LaunchSupport.jar LaunchSupport ./support/.. -vmargs
+```
+
+
 ## Licenses
 
 This project is released under the MIT license.

@@ -20,9 +20,10 @@
 
 import ghidra.app.script.GhidraScript
 
+@Suppress("unused")
 class HelloWorldScriptKt : GhidraScript() {
     @Throws(Exception::class)
     override fun run() {
-        println("Hello, Kotlin!")
+        println("Hello in Kotlin from $currentProgram!")
     }
 }
