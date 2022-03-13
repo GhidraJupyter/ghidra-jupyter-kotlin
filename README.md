@@ -16,7 +16,7 @@
     ghidra-jupyter install-extension
    ```
    
-3. If you have multiple installs of Ghidra,
+3. If you have multiple installations of Ghidra,
    you can point the installer to the right one.
    
    ```bash
@@ -57,15 +57,15 @@ Click the ![QtConsole] button to open a QtConsole.
 
 Once you click, a Jupyter Kernel will be initialized in the current Ghidra program
 and the Jupyter QtConsole will launch. If there is already a notebook kernel running,
-the console will use the same kernel (i.e. share the variables, functions, etc)
+the console will use the same kernel (i.e. share the variables, functions, etc.)
 
 ![QtConsole Window](resources/readme/qtconsole_window.png)
 
 #### Caveats
-Work/ghidra-angr-worker/AWD_GUI_Integration-Copy2.ipynb
+
 If you want to interrupt the code you executed, the menu action "Interrupt Current Kernel" or "Ctrl+C" will NOT work. It will simply print `Cannot interrupt a kernel I did not start.`
 
-This is a limitation of the Jupyter QT console. To work around this issue, the plugin provides an action `Interrupt Execution` in the `Jupyter` submenu. This will interrupt the curently executed cell:
+This is a limitation of the Jupyter QT console. To work around this issue, the plugin provides an action `Interrupt Execution` in the `Jupyter` submenu. This will interrupt the currently executed cell:
 
 ![Interrupt Demo](resources/readme/interrupt_demo.png)
 
@@ -119,28 +119,28 @@ These snippets can be pasted directly in the QT console or a notebook cell.
 
 ### Kotlin Extensions
 
-[Extensions](https://kotlinlang.org/docs/extensions.html#extensions-are-resolved-statically) are a Kotlin feature which allows extending existing classes with new methods, properties or operators. This allows various convience features, especially combined with other Kotlin Features like operator overloading and easily providing lambdas. They need to be explicitly imported in your script/kernel before using them:
+[Extensions](https://kotlinlang.org/docs/extensions.html#extensions-are-resolved-statically) are a Kotlin feature which allows extending existing classes with new methods, properties or operators. This allows various convenience features, especially combined with other Kotlin Features like operator overloading and easily providing lambdas. They need to be explicitly imported in your script/kernel before using them:
 
 ```kotlin
 // Import all extensions in the GhidraJupyterKotlin.extensions.address package
 import GhidraJupyterKotlin.extensions.address.*
 ```
 
-If you end up writing any kind of extension method/property/operator we would be happy to recieve a PR.
+If you end up writing any kind of extension method/property/operator we would be happy to receive a PR.
 Not all extension provided are documented in the README.md, check the [extensions folder](./GhidraJupyterKotlin/src/main/java/GhidraJupyterKotlin/extensions) for all of them. Nearly all of them are fairly simple (a few lines at most) so they can also serve as good examples how to write your own.
 
 #### Explicit Database Transactions
 
 Unlike the Jython REPL, the Kotlin Kernel does NOT wrap each cell in an implicit Database transaction. Any attempt to modify the Database will result in `NoTransactionException: Transaction has not been started`.
 
-Instead there is an extension method on the `UndoableDomainObject` interface, that makes Database transactions explicit with minimal syntactic overhead:
+Instead, there is an extension method on the `UndoableDomainObject` interface, that makes Database transactions explicit with minimal syntactic overhead:
 
 ```kotlin
 import GhidraJupyterKotlin.extensions.misc.*
 
 currentProgram.runTransaction {
 	/* your code modifying the DB */
-	currentProgram.name = "NewName
+	currentProgram.name = "NewName"
 }
 ```
 
@@ -158,7 +158,7 @@ For comparison, the regular Ghidra API for transactions:
 val transactionID = currentProgram.startTransaction("Transaction Description")
 /* your code modifying the DB */
 currentProgram.name = "NewName"
-currentProgram.endTransaction(transactionID, true) // true means the changes should be commited to the DB
+currentProgram.endTransaction(transactionID, true) // true means the changes should be committed to the DB
 ```
 
 
@@ -185,9 +185,9 @@ val range: AddressRange = y..x // The range of addresses between currentAddress-
 Generate a `x64dbg` script based on the `currentProgram` that labels all the functions in `x64dbg` and stores it in the clipboard
 
 ```kotlin
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
+import java.awt.Toolkit
+import java.awt.datatransfer.Clipboard
+import java.awt.datatransfer.StringSelection
 
 currentProgram.functionManager.getFunctions(false)
 .map { f -> "lblset 0x${f.entryPoint.offset}, ${f.name}"}.joinToString("\n")
