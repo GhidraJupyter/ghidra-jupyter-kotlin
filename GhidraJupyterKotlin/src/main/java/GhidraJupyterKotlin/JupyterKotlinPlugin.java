@@ -74,6 +74,11 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		registerActions();
 	}
 
+	public void clearKernel() {
+		currentKernel = null;
+	}
+
+
 	private void registerActions(){
 		DockingAction action = new DockingAction("Kotlin QtConsole", getName()) {
 			@Override
@@ -139,14 +144,7 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		interruptAction.setDescription("Interrupts the currently running kernel if it is executing something");
 		tool.addAction(interruptAction);
 
-
-		DockingAction shutdownAction = new DockingAction("Jupyter Server", getName()) {
-			@Override
-			public void actionPerformed(ActionContext context) {
-				runManager.cancelAllRunnables();
-				currentKernel = null;
-			}
-		};
+		DockingAction shutdownAction = new ShutDownKernelAction(this);
 		shutdownAction.setMenuBarData(
 				new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
 		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
