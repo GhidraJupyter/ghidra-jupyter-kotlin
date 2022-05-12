@@ -180,22 +180,54 @@ val range: AddressRange = y..x // The range of addresses between currentAddress-
 
 ```
 
-### Export x64dbg labels into clipboard
+### Defining your own Imports and Helpers for Quick Access
 
-Generate a `x64dbg` script based on the `currentProgram` that labels all the functions in `x64dbg` and stores it in the clipboard
+You can load a JSON file e.g. `decompiler.json`
 
-```kotlin
-import java.awt.Toolkit
-import java.awt.datatransfer.Clipboard
-import java.awt.datatransfer.StringSelection
-
-currentProgram.functionManager.getFunctions(false)
-.map { f -> "lblset 0x${f.entryPoint.offset}, ${f.name}"}.joinToString("\n")
-.let { 
-    val sel = StringSelection(it)
-    Toolkit.getDefaultToolkit().systemClipboard.setContents(sel, sel)
+```json
+{
+  "link": "https://github.com/GhidraJupyter/ghidra-jupyter-kotlin",
+  "description": "Shortcut to load features in Kotlin Kernel",
+  "imports": [
+    "GhidraJupyterKotlin.extensions.address.*",
+    "GhidraJupyterKotlin.extensions.data.*",
+    "GhidraJupyterKotlin.extensions.misc.*",
+    "ghidra.app.decompiler.*"
+  ],
+   "init" : [
+      "val ClangNode.parent: ClangTokenGroup; get() = this.Parent() as ClangTokenGroup",
+      "val ClangNode.children: List<ClangNode>; get() = (0..this.numChildren()-1).map(this::Child)",
+      "val currentToken: ClangToken?; get() = (currentLocation as? DecompilerLocation)?.token"
+   ]
 }
 ```
+
+and then activate it:
+```
+%use /PATH/TO/FILE/decompiler
+```
+
+If the file is placed under `$HOME/.jupyter_kotlin/libraries`, you only need to use the name, e.g. `%use decompiler`
+
+When activated, the `imports` will be made available just like with a manual import
+and each line in `init` will be run once. This means that the extension methods defined in the imports are available too.
+You can also import other packages to easily access classes, e.g. for `(currentLocation as DecompilerLocation).token`
+
+The `init` block in this example defines three [Extension Properties](https://kotlinlang.org/docs/extensions.html#extension-properties).
+1. Work around the annoying name of the `ClangNode.Parent()` function and
+the quirk that this should always be a `ClangTokenGroup`, but isn't typed as such in Ghidra itself. 
+2. A function that collects all the children of a node into a list (which then works with `.map` etc.)
+3. Add a value/property to directly access the currently selected token.
+
+Combined this means you can now open a console via the GUI, run `%use decompiler`, click on a token in the decompiler,
+and run
+```
+In [1]: %use decompilerKotlin 
+In [2]: currentToken.parent.children
+Out[2]: [pcVar2,  , =,  , "startUpdatingLocation"]
+```
+
+For a full list of possibilities check the [official documentation](https://github.com/Kotlin/kotlin-jupyter/blob/master/docs/libraries.md#creating-library-descriptor)
 
 
 ## Building the Ghidra Plugin
