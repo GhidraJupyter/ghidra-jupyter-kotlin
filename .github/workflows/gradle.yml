@@ -20,7 +20,7 @@ jobs:
           java-version: 1.11
       - uses: er28-0652/setup-ghidra@master
         with:
-                version: "10.1.3"
+                version: "10.1.4"
 
       - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
