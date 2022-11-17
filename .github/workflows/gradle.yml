@@ -14,13 +14,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up JDK 1.11
+      - name: Set up JDK 1.17
         uses: actions/setup-java@v1
         with:
-          java-version: 1.11
+          java-version: 1.17
       - uses: er28-0652/setup-ghidra@master
         with:
-                version: "10.1.5"
+                version: "10.2.2"
 
       - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
@@ -36,7 +36,7 @@ jobs:
         run: unzip ./GhidraJupyterKotlin/dist/*zip -d $GHIDRA_INSTALL_DIR/Ghidra/Extensions
 
       - name: Test Kernel Startup # Test if the kernel manages to not crash before the timeout terminates it
-        run: timeout 5s $GHIDRA_INSTALL_DIR/support/launch.sh fg Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124))
+        run: timeout 5s $GHIDRA_INSTALL_DIR/support/launch.sh fg jdk Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124))
 
       - name: Install jupyter-console for testing evaluation
         run: sudo apt-get install jupyter-console
@@ -44,7 +44,7 @@ jobs:
       - name: Test basic evaluation
         run: |
                 echo "1+1" | jupyter-console --existing=.github/workflows/test-kernel-config.json &
-                timeout 10s $GHIDRA_INSTALL_DIR/support/launch.sh fg Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124)) 
+                timeout 10s $GHIDRA_INSTALL_DIR/support/launch.sh fg jdk Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124)) 
 
       - name: Test support for .kt Scripts
         run: |

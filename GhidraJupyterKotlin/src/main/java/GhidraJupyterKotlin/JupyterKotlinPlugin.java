@@ -63,7 +63,7 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 * @param tool The plugin tool that this plugin is added to.
 	 */
 	public JupyterKotlinPlugin(PluginTool tool) {
-		super(tool, true, true);
+		super(tool);
 		toolOptions = tool.getOptions(PLUGIN_NAME);
 		toolOptions.registerOption(OPTION_CONSOLE_CMD, OptionType.STRING_TYPE, DEFAULT_CONSOLE_CMD, null,
 				"Default Console command to execute (connection file will be appended)");
@@ -294,7 +294,6 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 */
 	protected void locationChanged(ProgramLocation loc) {
 		if (currentLocation != null) {
-			Msg.info(this, String.format("Location changed to %s", currentLocation));
 			cellContext.setCurrentLocation(currentLocation.getAddress());
 			cellContext.currentContextLocation = loc;
 		}
@@ -306,7 +305,6 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 * @param sel selection could be null
 	 */
 	protected void selectionChanged(ProgramSelection sel) {
-		Msg.info(this, String.format("Selection changed to %s", currentSelection));
 		cellContext.setCurrentSelection(currentSelection);
 	}
 
@@ -316,7 +314,10 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 * @param hl highlight could be null
 	 */
 	protected void highlightChanged(ProgramSelection hl) {
-		Msg.info(this, "Highlight changed");
-		cellContext.setCurrentHighlight(currentHighlight);
+		try {
+			cellContext.setCurrentHighlight(currentHighlight);
+		} catch (NullPointerException e) {
+			Msg.error(this, "Null Pointer exception during set highlight, probably harmless", e);
+		}
 	}
 }
