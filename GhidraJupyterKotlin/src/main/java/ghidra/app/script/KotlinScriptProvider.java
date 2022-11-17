@@ -74,7 +74,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
 
     @Override
     public GhidraScript getScriptInstance(ResourceFile sourceFile, PrintWriter writer)
-            throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+            throws GhidraScriptLoadException {
 
         if (writer == null) {
             writer = new NullPrintWriter();
@@ -82,7 +82,12 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
 
         // Assuming script is in default java package, so using script's base name as class name.
         File clazzFile = getClassFile(sourceFile, GhidraScriptUtil.getBaseName(sourceFile));
-        compile(sourceFile, writer); // may throw an exception
+        try {
+            compile(sourceFile, writer); // may throw an exception
+        } catch (ClassNotFoundException e) {
+            throw new GhidraScriptLoadException("The class could not be found. " +
+                    "It must be the public class of the .java file: " + e.getMessage(), e);
+        }
 
 
         Class<?> clazz;
@@ -103,7 +108,9 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
             //noinspection ConstantConditions
             object = clazz.getDeclaredConstructor().newInstance();
         } catch (InvocationTargetException | NoSuchMethodException e) {
-            Msg.error(this, "Unexpected Error during class instantiation, please open an issue ", e);
+            throw new GhidraScriptLoadException(e);
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new GhidraScriptLoadException(e);
         }
         if (object instanceof GhidraScript) {
             GhidraScript script = (GhidraScript) object;
