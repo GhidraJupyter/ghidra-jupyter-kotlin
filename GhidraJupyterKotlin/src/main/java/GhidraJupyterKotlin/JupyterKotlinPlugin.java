@@ -232,6 +232,10 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	}
 
 	private void openDefaultNotebook(){
+		if (currentKernel != null) {
+			Msg.info(this, "There is already a kernel running");
+			return;
+		}
 		var programValue = programOptions.getString(OPTION_LAST_URI, "");
 		var toolValue = toolOptions.getString(OPTION_LAST_URI, "");
 		var value = "";
