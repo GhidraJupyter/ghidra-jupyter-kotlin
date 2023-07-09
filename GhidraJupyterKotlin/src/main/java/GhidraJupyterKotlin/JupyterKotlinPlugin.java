@@ -144,11 +144,13 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		interruptAction.setDescription("Interrupts the currently running kernel if it is executing something");
 		tool.addAction(interruptAction);
 
-		DockingAction shutdownAction = new ShutDownKernelAction(this);
-		shutdownAction.setMenuBarData(
-				new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
-		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
-		tool.addAction(shutdownAction);
+		// TODO: Make kernel shutdown reliable again
+//		DockingAction shutdownAction = new ShutDownKernelAction(this);
+//		shutdownAction.setMenuBarData(
+//			new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
+//		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
+//		tool.addAction(shutdownAction);
+
 	}
 
 	private void launchQtConsole() {
