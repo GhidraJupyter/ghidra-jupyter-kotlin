@@ -316,10 +316,8 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 * @param hl highlight could be null
 	 */
 	protected void highlightChanged(ProgramSelection hl) {
-		try {
-			cellContext.setCurrentHighlight(currentHighlight);
-		} catch (NullPointerException e) {
-			Msg.error(this, "Null Pointer exception during set highlight, probably harmless", e);
+		if (hl != null) {
+			cellContext.setCurrentHighlight(hl);
 		}
 	}
 }
