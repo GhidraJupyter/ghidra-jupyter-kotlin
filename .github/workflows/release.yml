@@ -16,7 +16,7 @@ jobs:
           java-version: 1.17
       - uses: er28-0652/setup-ghidra@master
         with:
-          version: "10.4"
+          version: "11.0"
 
       - name: Build with Gradle
         working-directory: ./GhidraJupyterKotlin
