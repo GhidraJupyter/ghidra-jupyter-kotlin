@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -87,6 +88,16 @@ public class ConnectionFile {
         }
         String runtimeDir = getJupyterRuntime();
         File kernelFile = new File(runtimeDir, String.format("kernel-%s.json", key));
+        // Make sure that the directory actually exists
+        // this is not guaranteed by only invoking `jupyter --runtime-dir`
+        // on new machines that never did anything with jupyter the directory won't exist
+        // and writing the file will fail
+        try {
+            Files.createDirectories(kernelFile.getParentFile().toPath());
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
 
         String connectionFile = formatConnectionFile(key, ports);
 
