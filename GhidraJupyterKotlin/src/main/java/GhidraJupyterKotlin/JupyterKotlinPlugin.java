@@ -36,7 +36,7 @@ import java.net.URISyntaxException;
 @PluginInfo(
 	status = PluginStatus.RELEASED,
 	packageName = "GhidraJupyterKotlin",
-	category = PluginCategoryNames.INTERPRETERS,
+	category = PluginCategoryNames.COMMON,
 	shortDescription = "Kotlin Jupyter kernel for Ghidra.",
 	description = "Kotlin Jupyter kernel for Ghidra."
 )
