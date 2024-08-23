@@ -53,7 +53,10 @@ def _get_ghidra_version(ghidra_install_dir: Optional[str]) -> version.Version:
     app_properties = os.path.join(ghidra_install_dir, "Ghidra", "application.properties")
     with open(app_properties, "r") as f:
         for line in f.readlines():
-            key, value = line.split("=")
+            prop_split = line.split("=")
+            if len(prop_split) != 2:
+                continue
+            key, value = prop_split
             if key == "application.version":
                 return version.parse(value)
 
