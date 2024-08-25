@@ -16,7 +16,7 @@ public class GhidraKotlinKernelLaunchable implements GhidraLaunchable {
         Msg.info(this, connectionFile.toString());
         IkotlinKt.embedKernel(
                 connectionFile,
-                EmptyResolutionInfoProvider.INSTANCE,
+                null,
                 null);
     }
 }

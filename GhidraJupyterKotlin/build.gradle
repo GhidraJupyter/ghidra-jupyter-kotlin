@@ -21,8 +21,13 @@ plugins {
 
 
 compileKotlin {
-	kotlinOptions.jvmTarget = "17"
+	kotlinOptions.jvmTarget = "21"
 }
+
+kotlin {
+	jvmToolchain(21)
+}
+
 configurations {
     requiredLibs //.extendsFrom implementation
 }
@@ -55,13 +60,15 @@ else {
 //----------------------END "DO NOT MODIFY" SECTION-------------------------------
 
 dependencies {
-	api('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.11.0-89-1'){ exclude group: "org.slf4j", module: "slf4j-api" }
+	api('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.12.0-356'){
+//		exclude group: "org.slf4j", module: "slf4j-api"
+	}
 	// Needed for compiling
 	// after building they are already included as part of the recursive dependencies of kotlin-jupyter-kernel
 	api group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "$kotlinVersion"
-	api group: 'org.json', name: 'json', version: '20210307'
-	api group: 'org.zeromq', name: 'jeromq', version: '0.5.2'
-	implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1"
+//	api group: 'org.json', name: 'json', version: '20210307'
+	api group: 'org.zeromq', name: 'jeromq', version: '0.6.0'
+//	implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1"
 }
 compileKotlin.dependsOn(copyDependencies)
 buildExtension.dependsOn(copyDependencies)
