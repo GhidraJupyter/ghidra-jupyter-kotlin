@@ -20,7 +20,6 @@ import ghidra.util.Msg;
 import ghidra.util.task.RunManager;
 import ghidra.util.task.TaskMonitor;
 import org.apache.commons.lang3.ArrayUtils;
-import org.json.JSONObject;
 import resources.ResourceManager;
 
 import javax.swing.*;
@@ -138,17 +137,17 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		defaultNotebookAction.setDescription("Open Default Notebook");
 		tool.addAction(defaultNotebookAction);
 
-		DockingAction interruptAction = new InterruptKernelAction(this);
-		interruptAction.setMenuBarData(
-				new MenuData(new String[] { "Jupyter", "Interrupt Execution" }, null, null));
-		interruptAction.setDescription("Interrupts the currently running kernel if it is executing something");
-		tool.addAction(interruptAction);
+//		DockingAction interruptAction = new InterruptKernelAction(this);
+//		interruptAction.setMenuBarData(
+//				new MenuData(new String[] { "Jupyter", "Interrupt Execution" }, null, null));
+//		interruptAction.setDescription("Interrupts the currently running kernel if it is executing something");
+//		tool.addAction(interruptAction);
 
-		DockingAction shutdownAction = new ShutDownKernelAction(this);
-		shutdownAction.setMenuBarData(
-				new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
-		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
-		tool.addAction(shutdownAction);
+//		DockingAction shutdownAction = new ShutDownKernelAction(this);
+//		shutdownAction.setMenuBarData(
+//				new MenuData(new String[] { "Jupyter", "Shutdown Kernel" }, null, null));
+//		shutdownAction.setDescription("Terminates the currently running kernel if it isn't busy");
+//		tool.addAction(shutdownAction);
 	}
 
 	private void launchQtConsole() {
@@ -183,14 +182,16 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 
 			String s = stdInput.readLine();
 
-			if (s != null) {
-				JSONObject obj = new JSONObject(s);
-				return new URI((String) obj.get("url"));
-				}
-		} catch (IOException | URISyntaxException e) {
+//			if (s != null) {
+//				JSONObject obj = new JSONObject(s);
+//				return new URI((String) obj.get("url"));
+//				}
+		} catch (IOException e) {
 			e.printStackTrace();
+//		} catch (URISyntaxException e) {
+//			e.printStackTrace();
 		}
-		return null;
+        return null;
 	}
 
 	private void openURI(URI uri){

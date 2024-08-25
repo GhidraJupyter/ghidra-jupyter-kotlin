@@ -9,7 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-class NotebookProxy {
+public class NotebookProxy {
     File proxyFile;
     File pidFile;
 
@@ -19,6 +19,14 @@ class NotebookProxy {
     }
 
     public File waitForConnection(TaskMonitor monitor) throws IOException, CancelledException {
+        // Ensure that the directory exists (create it if needed)
+        var parent = proxyFile.getParentFile();
+        if (!parent.exists()) {
+            if (!parent.mkdirs()){
+                throw new IOException("Failed to create directory: " + parent);
+            }
+        }
+
         // Write the PID to file so that the
         pidFile.delete();
         pidFile.createNewFile();
