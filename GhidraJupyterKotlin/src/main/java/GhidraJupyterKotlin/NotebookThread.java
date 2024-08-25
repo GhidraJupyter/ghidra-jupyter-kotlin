@@ -76,7 +76,7 @@ public class NotebookThread implements KernelThread {
         Msg.info(this, connectionFile.toString());
         IkotlinKt.embedKernel(
                 connectionFile,
-                EmptyResolutionInfoProvider.INSTANCE,
+                null,
                 Collections.singletonList(context));
     }
 

@@ -82,6 +82,7 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
 
         // Assuming script is in default java package, so using script's base name as class name.
         File clazzFile = getClassFile(sourceFile, GhidraScriptUtil.getBaseName(sourceFile));
+        clazzFile.delete(); // delete the class file to force re-compile
         try {
             compile(sourceFile, writer); // may throw an exception
         } catch (ClassNotFoundException e) {
@@ -232,6 +233,11 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         JvmContentRootsKt.addJvmClasspathRoots(compilerConfiguration, getClassPathAsFiles());
         ContentRootsKt.addKotlinSourceRoot(compilerConfiguration, sourceFile.toString());
         compilerConfiguration.put(JVMConfigurationKeys.OUTPUT_DIRECTORY, outputDir(sourceFile).getFile(false));
+
+        // This shouldn't be needed and is a workaround for a bug in the Kotlin compiler
+        // https://youtrack.jetbrains.com/issue/KT-20167/JDK-9-unresolved-supertypes-Object-when-working-with-Kotlin-Scripting-API
+        compilerConfiguration.put(JVMConfigurationKeys.JDK_HOME, new File(System.getProperty("java.home")));
+
         var disposable = Disposer.newDisposable();
 
         KotlinCoreEnvironment env = KotlinCoreEnvironment.createForProduction(

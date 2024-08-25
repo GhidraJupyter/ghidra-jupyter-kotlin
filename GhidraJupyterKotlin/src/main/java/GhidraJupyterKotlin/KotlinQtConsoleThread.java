@@ -26,7 +26,7 @@ public class KotlinQtConsoleThread implements KernelThread {
         try {
             IkotlinKt.embedKernel(
                     connectionFile,
-                    EmptyResolutionInfoProvider.INSTANCE,
+                    null,
                     Collections.singletonList(context));
         } catch( ZMQException e){
            Msg.warn(this,"Kernel terminated, probably because of shutdown request?", e);

@@ -9,7 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-class NotebookProxy {
+public class NotebookProxy {
     File proxyFile;
     File pidFile;
 
