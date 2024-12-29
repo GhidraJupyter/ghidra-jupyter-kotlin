@@ -1,6 +1,8 @@
 package GhidraJupyterKotlin;
 
 
+import ghidra.util.Msg;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -60,8 +62,7 @@ public class ConnectionFile {
 
             return processOutputReader.readLine().strip();
         } catch (InterruptedException | IOException e) {
-            e.printStackTrace();
-            return null;
+            throw new RuntimeException("Could not get jupyter runtime directory, please report this issue",e);
         }
     }
 
@@ -92,6 +93,10 @@ public class ConnectionFile {
         // this is not guaranteed by only invoking `jupyter --runtime-dir`
         // on new machines that never did anything with jupyter the directory won't exist
         // and writing the file will fail
+        Msg.info(ConnectionFile.class, "Trying to write Kernel file to: " + kernelFile.getAbsolutePath());
+        if (kernelFile.getParentFile() == null) {
+            throw new RuntimeException("Parent directory of kernel file %s is unexpectedly null, please report this issue".formatted(kernelFile.toString()));
+        }
         try {
             Files.createDirectories(kernelFile.getParentFile().toPath());
         } catch (IOException e) {
