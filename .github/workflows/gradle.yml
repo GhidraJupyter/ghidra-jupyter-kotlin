@@ -27,7 +27,7 @@ jobs:
         run: gradle buildExtension
 
       - name: Upload built extension as artifact for debugging
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
                 path: ./GhidraJupyterKotlin/dist/*zip
                 retention-days: 1
