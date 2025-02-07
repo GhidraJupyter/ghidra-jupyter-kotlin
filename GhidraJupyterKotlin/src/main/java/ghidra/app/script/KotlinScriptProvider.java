@@ -82,7 +82,6 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
 
         // Assuming script is in default java package, so using script's base name as class name.
         File clazzFile = getClassFile(sourceFile, GhidraScriptUtil.getBaseName(sourceFile));
-        clazzFile.delete(); // delete the class file to force re-compile
         try {
             compile(sourceFile, writer); // may throw an exception
         } catch (ClassNotFoundException e) {
