@@ -1,5 +1,0 @@
-psutil
-attrs
-notebook
-tqdm
-requests
