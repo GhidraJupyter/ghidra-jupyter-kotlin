@@ -1,4 +1,4 @@
-name: Python Package
+name: Python Package - Testing
 
 on:
   workflow_dispatch:
@@ -11,6 +11,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - uses: hynek/build-and-inspect-python-package@v2
         with:
             path: "ghidra_jupyter"
