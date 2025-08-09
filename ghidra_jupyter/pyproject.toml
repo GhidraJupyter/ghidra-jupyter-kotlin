@@ -1,6 +1,6 @@
 [project]
 name = "ghidra-jupyter"
-version = "1.1.1"
+dynamic = ["version"]
 description = "A Jupyter kernel for Ghidra"
 readme = "README.md"
 license = "MIT"
@@ -23,8 +23,15 @@ dependencies = [
 ghidra-jupyter = "ghidra_jupyter.installer:main"
 
 [build-system]
-requires = ["hatchling>=1.14"]
+requires = ["hatchling>=1.14", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+
+[tool.hatch.version]
+source = "vcs"
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+root = ".."
 
 
 [tool.hatch.build.targets.wheel.shared-data]
