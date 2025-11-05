@@ -20,7 +20,7 @@ jobs:
 
       - name: Build with Gradle
         working-directory: ./GhidraJupyterKotlin
-        run: gradle buildExtension
+        run: ../gradlew buildExtension
 
       - name: Debug github.ref
         run: echo ${{github.ref}}
