@@ -24,7 +24,7 @@ jobs:
 
       - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
-        run: gradle buildExtension
+        run: ../gradlew buildExtension
 
       - name: Upload built extension as artifact for debugging
         uses: actions/upload-artifact@v4
