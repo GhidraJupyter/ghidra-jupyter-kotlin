@@ -4,7 +4,12 @@ import docking.ActionContext;
 import docking.action.DockingAction;
 import docking.action.MenuData;
 import docking.action.ToolBarData;
+import docking.action.builder.ActionBuilder;
 import docking.widgets.OptionDialog;
+import generic.theme.GIcon;
+import generic.theme.Gui;
+import generic.theme.ThemeEvent;
+import generic.theme.ThemeListener;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
 import ghidra.app.script.GhidraState;
@@ -18,6 +23,7 @@ import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
 import ghidra.util.Msg;
 import ghidra.util.task.RunManager;
+import ghidra.util.task.TaskLauncher;
 import ghidra.util.task.TaskMonitor;
 import org.apache.commons.lang3.ArrayUtils;
 import resources.ResourceManager;
@@ -40,15 +46,17 @@ import java.net.URISyntaxException;
 	description = "Kotlin Jupyter kernel for Ghidra."
 )
 //@formatter:on
-public class JupyterKotlinPlugin extends ProgramPlugin {
+public class JupyterKotlinPlugin extends ProgramPlugin implements ThemeListener {
 	private static final String OPTION_LAST_URI = "LAST_URI";
 	private static final String DEFAULT_URI = "http://localhost:8888/tree";
 	private static final String OPTION_CONSOLE_CMD = "CONSOLE_CMD";
 	private static final String DEFAULT_CONSOLE_CMD = "jupyter-qtconsole --existing";
-	private static final String PLUGIN_NAME = "JupyterKotlinPlugin";
+	public static final String PLUGIN_NAME = "JupyterKotlinPlugin";
+    public static final String OPTION_CONSOLE_PATH = "CONSOLE_PATH";
 	private final RunManager runManager = new RunManager();
 	private final CellContext cellContext = new CellContext();
-	private Options programOptions;
+    private final TerminalDockingWindowComponent terminal;
+    private Options programOptions;
 	private Options toolOptions;
 
 	public File getConnectionFile() {
@@ -63,30 +71,44 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 */
 	public JupyterKotlinPlugin(PluginTool tool) {
 		super(tool);
+        // We listen to theme changes to update the terminal colors
+        Gui.addThemeListener(this);
 		toolOptions = tool.getOptions(PLUGIN_NAME);
 		toolOptions.registerOption(OPTION_CONSOLE_CMD, OptionType.STRING_TYPE, DEFAULT_CONSOLE_CMD, null,
 				"Default Console command to execute (connection file will be appended)");
+        toolOptions.registerOption(OPTION_CONSOLE_PATH, OptionType.FILE_TYPE, null, null,
+                "Path to the jupyter-console executable.");
 		toolOptions.registerOption(OPTION_LAST_URI, OptionType.STRING_TYPE, DEFAULT_URI, null,
 				"Default URI to open when using the GUI shortcut. " +
 						"This can be set to the full path to a specific notebook " +
 						"that should open directly after the kernel starts waiting");
 		registerActions();
+
+        terminal = new TerminalDockingWindowComponent(tool, this);
+        tool.addComponentProvider(terminal, true);
+        tool.addLocalAction(terminal, new ActionBuilder("Reset Terminal Session", getName())
+                        .toolBarIcon(new GIcon("icon.refresh"))
+                .onAction(e -> terminal.resetTerminalSession())
+                .description("Resets the terminal connection, connecting it to the current kernel if available")
+                .build());
+
+
+
 	}
 
-	public void clearKernel() {
-		currentKernel = null;
-	}
-
+    public File getOrStartNewConsoleKernel() {
+        if (currentKernel == null) {
+            currentKernel = new KotlinQtConsoleThread(cellContext, ConnectionFile.create());
+            runManager.runNow(currentKernel, "Kotlin kernel");
+        }
+        return currentKernel.getConnectionFile();
+    }
 
 	private void registerActions(){
 		DockingAction action = new DockingAction("Kotlin QtConsole", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
-				if (getConnectionFile() == null) {
-					currentKernel = new KotlinQtConsoleThread(cellContext, ConnectionFile.create());
-					runManager.runNow(currentKernel, "Kotlin kernel");
-				}
-				launchQtConsole();
+                terminal.setVisible(true);
 			}
 		};
 		ImageIcon qtconsoleIcon = ResourceManager.loadImage("images/qtconsole.png");
@@ -100,6 +122,16 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		DockingAction notebookAction = new DockingAction("Kotlin Notebook", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
+                if (currentKernel != null ){
+                    // Open a confirmation dialog for the user that a kernel is already running and that they wish to replace it
+                    int result = OptionDialog.showYesNoDialog(null,
+                            "Kernel Already Running",
+                            "A Kotlin kernel is already running. Starting a new kernel will stop the current one.\n" +
+                                    "Do you wish to continue and start a new kernel?");
+                    if (result != OptionDialog.OPTION_ONE){
+                        return;
+                    }
+                }
 				currentKernel = new NotebookThread(cellContext, tool);
 				runManager.runNow(currentKernel, "Notebook");
 			}
@@ -323,4 +355,12 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 			cellContext.setCurrentHighlight(hl);
 		}
 	}
+
+    @Override
+    public void themeChanged(ThemeEvent event) {
+        if (event.hasAnyColorChanged()) {
+            // We can only handle color changes, font changes require a Ghidra restart for now
+            terminal.updateTerminalColors();
+        }
+    }
 }

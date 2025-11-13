@@ -27,6 +27,7 @@ class KotlinCompilerMessageCollector(private val sourceFile: ResourceFile) : Mes
             CompilerMessageSeverity.INFO -> Msg.info(this, message)
             CompilerMessageSeverity.LOGGING -> Msg.debug(this, message)
             CompilerMessageSeverity.OUTPUT -> Msg.out(message)
+            CompilerMessageSeverity.FIXED_WARNING -> Msg.warn(this, message)
         }
     }
 }
