@@ -80,6 +80,8 @@ dependencies {
 //    }
     // pty4j-0.13.8.jar
     implementation 'org.jetbrains.pty4j:pty4j:0.13.8'
+    testImplementation('junit:junit:4.13.1')
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
 }
 compileKotlin.dependsOn(copyDependencies)
 buildExtension.dependsOn(copyDependencies)
