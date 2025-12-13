@@ -11,16 +11,30 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - ghidra: "12.0"
+          - ghidra: "11.4.3"
+          - ghidra: "11.4.2"
+          - ghidra: "11.4.1"
+          - ghidra: "11.4"
+          - ghidra: "11.3.2"
+          - ghidra: "11.3.1"
+          - ghidra: "11.3"
+          - ghidra: "11.2.1"
+          - ghidra: "11.2"
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.21
         uses: actions/setup-java@v1
         with:
           java-version: 1.21
-      - uses: er28-0652/setup-ghidra@master
+      - uses: antoniovazquezblanco/setup-ghidra@v2.0.4
         with:
-                version: "11.3"
+          auth_token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ matrix.ghidra }}
 
       - name: Run basic tests (with Xvfb)
         uses: coactions/setup-xvfb@v1
@@ -39,11 +53,11 @@ jobs:
         working-directory: ./GhidraJupyterKotlin
         run: gradle buildExtension
 
-      - name: Upload built extension as artifact for debugging
-        uses: actions/upload-artifact@v4
-        with:
-                path: ./GhidraJupyterKotlin/dist/*zip
-                retention-days: 1
+#      - name: Upload built extension as artifact for debugging
+#        uses: actions/upload-artifact@v4
+#        with:
+#                path: ./GhidraJupyterKotlin/dist/*zip
+#                retention-days: 1
 
       - name: Install Extension
         run: unzip ./GhidraJupyterKotlin/dist/*zip -d $GHIDRA_INSTALL_DIR/Ghidra/Extensions
