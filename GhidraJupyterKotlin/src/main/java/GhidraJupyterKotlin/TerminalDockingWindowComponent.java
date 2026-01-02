@@ -15,6 +15,7 @@ import docking.ComponentProvider;
 import docking.Tool;
 
 import generic.theme.Gui;
+import ghidra.util.Msg;
 import ghidra.util.task.TaskLauncher;
 import ghidra.util.task.TaskMonitorComponent;
 import kotlin.Unit;
@@ -40,6 +41,7 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
     private final JupyterKotlinPlugin plugin;
     private final ThemeAwareSettingsProvider settings;
     TaskMonitorComponent taskMonitorComponent;
+    private boolean askedForConsolePathThisSession = false;
 
     public TerminalDockingWindowComponent(Tool tool, JupyterKotlinPlugin plugin) {
         super(tool, "Jupyter Console Terminal Window", plugin.getName());
@@ -77,10 +79,9 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
         return panel;
     }
 
-    private @NotNull TtyConnector createTtyConnector(File connectionFile) {
+    private @NotNull TtyConnector createTtyConnector(File connectionFile, File consoleExecFile) {
         try {
             String[] command;
-            var consoleExecFile = getJupyterConsolePath();
             String consolePathAsString;
             if (consoleExecFile == null) {
                 consolePathAsString = "jupyter-console"; // Assume it's in PATH
@@ -113,34 +114,48 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
         if (widget.isSessionRunning()) {
             return;
         }
+        var consolePath = dockingTool.getOptions(JupyterKotlinPlugin.PLUGIN_NAME).getFile(OPTION_CONSOLE_PATH, null);
+        if (consolePath == null) {
+            if (!askedForConsolePathThisSession) {
+                askedForConsolePathThisSession = true;
+                // We don't need to deal with the return value here
+                // The dialog steals focus, and when it's closed componentActivated is called again
+                plugin.promptForJupyterConsolePath();
+                return;
+            }
+            return; // No console executable set or found, we cannot start anything
+        }
+
         // No process is running yet
         TaskLauncher.launchModal("Initializing Jupyter Kernel...", () -> {
             File connectionFile = plugin.getOrStartNewConsoleKernel();
-            startTerminalSession(connectionFile);
+            startTerminalSession(connectionFile, consolePath);
         });
 
     }
 
-    public void resetTerminalSession() {
-        if (widget.isSessionRunning()) {
-            TaskLauncher.launchModal("Initializing Jupyter Kernel...", () -> {
-                widget.getTtyConnector().close();
-                File connectionFile = plugin.getOrStartNewConsoleKernel();
-                TtyConnector ttyConnector = createTtyConnector(connectionFile);
-                widget.setTtyConnector(ttyConnector);
-            });
+//    public void resetTerminalSession() {
+//        if (widget.isSessionRunning()) {
+//            TaskLauncher.launchModal("Initializing Jupyter Kernel...", () -> {
+//                widget.getTtyConnector().close();
+//                File connectionFile = plugin.getOrStartNewConsoleKernel();
+//                TtyConnector ttyConnector = createTtyConnector(connectionFile);
+//                widget.setTtyConnector(ttyConnector);
+//            });
+//        }
+//    }
+
+    private void startTerminalSession(File connectionFile, File consoleFile) {
+        try {
+            TtyConnector ttyConnector = createTtyConnector(connectionFile, consoleFile);
+            widget.setTtyConnector(ttyConnector);
+            widget.start();
+        } catch (Exception e) {
+            Msg.showError(this, panel, "Error starting Jupyter Console Terminal",
+                    "An error occurred while starting the Jupyter Console Terminal", e);
+            return;
         }
 
-    }
-
-    private File getJupyterConsolePath() {
-        return dockingTool.getOptions(JupyterKotlinPlugin.PLUGIN_NAME).getFile(OPTION_CONSOLE_PATH, null);
-    }
-
-    private void startTerminalSession(File connectionFile) {
-        TtyConnector ttyConnector = createTtyConnector(connectionFile);
-        widget.setTtyConnector(ttyConnector);
-        widget.start();
     }
 
     public void updateTerminalColors() {
@@ -182,7 +197,7 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
      * This KeyAdapter is called by Ghidra's {@link docking.KeyBindingOverrideKeyEventDispatcher#dispatchKeyEvent(KeyEvent)}
      * while deciding if a keypress is handled by a component and should thus not trigger an Action inside the Ghidra Action system.
      * Usually the Terminal Panel would receive the KeyEvent from the Java AWT event handling system
-     * which calls {@link com.jediterm.terminal.ui.TerminalPanel#processKeyEvent(KeyEvent)}, which is overriden from
+     * which calls {@link com.jediterm.terminal.ui.TerminalPanel#processKeyEvent(KeyEvent)}, which is overridden from
      * {@link java.awt.Component#processKeyEvent(KeyEvent)}.
      * But Ghidra never forwards the event to AWT if there is a keybinding matching an action, and would instead trigger
      * the action.
