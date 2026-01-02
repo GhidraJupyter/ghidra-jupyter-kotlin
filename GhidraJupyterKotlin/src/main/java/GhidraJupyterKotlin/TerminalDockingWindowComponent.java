@@ -16,8 +16,11 @@ import docking.Tool;
 
 import generic.theme.Gui;
 import ghidra.util.task.TaskLauncher;
+import ghidra.util.task.TaskMonitorComponent;
+import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.kotlinx.jupyter.api.libraries.JupyterIntegration;
 
 import javax.swing.*;
 import java.awt.*;
@@ -32,15 +35,25 @@ import java.util.Map;
 import static GhidraJupyterKotlin.JupyterKotlinPlugin.OPTION_CONSOLE_PATH;
 
 public class TerminalDockingWindowComponent extends ComponentProvider {
-    private JediTermWidget widget;
+    private final JPanel panel;
+    private final JediTermWidget widget;
     private final JupyterKotlinPlugin plugin;
     private final ThemeAwareSettingsProvider settings;
+    TaskMonitorComponent taskMonitorComponent;
 
     public TerminalDockingWindowComponent(Tool tool, JupyterKotlinPlugin plugin) {
         super(tool, "Jupyter Console Terminal Window", plugin.getName());
         this.plugin = plugin;
         settings = new ThemeAwareSettingsProvider();
         widget = constructWidget();
+        panel = new JPanel();
+        // Construct the overall component which consists of the terminal widget and TaskMonitorComponent
+        taskMonitorComponent = new TaskMonitorComponent();
+        panel.setLayout(new BorderLayout());
+        panel.add(widget, BorderLayout.CENTER);
+        panel.add(taskMonitorComponent, BorderLayout.SOUTH);
+        taskMonitorComponent.setVisible(false);
+        taskMonitorComponent.setIndeterminate(true);
     }
 
 //    public void connectToJupyter()  {
@@ -61,7 +74,7 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
 
     @Override
     public JComponent getComponent() {
-        return widget;
+        return panel;
     }
 
     private @NotNull TtyConnector createTtyConnector(File connectionFile) {
@@ -268,6 +281,28 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
         @Override
         public ColorPalette getTerminalColorPalette() {
             return cachedPalette;
+        }
+    }
+
+    public static class JupyterConsoleIntegration extends JupyterIntegration {
+        TaskMonitorComponent taskMonitorComponent;
+        public JupyterConsoleIntegration(TaskMonitorComponent  monitorComponent) {
+            this.taskMonitorComponent = monitorComponent;
+        }
+        @Override
+        public void onLoaded(@NotNull JupyterIntegration.Builder builder) {
+            builder.beforeCellExecution((it) -> {
+                taskMonitorComponent.setVisible(true);
+                return Unit.INSTANCE;
+            });
+            builder.afterCellExecution((p1, p2, p3) -> {
+                taskMonitorComponent.setVisible(false);
+                return Unit.INSTANCE;
+            });
+            builder.onInterrupt((it) -> {
+//                taskMonitorComponent.cancel();
+                return Unit.INSTANCE;
+            });
         }
     }
 

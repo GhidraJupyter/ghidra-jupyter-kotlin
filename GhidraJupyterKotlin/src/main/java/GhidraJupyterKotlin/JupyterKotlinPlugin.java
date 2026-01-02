@@ -98,6 +98,7 @@ public class JupyterKotlinPlugin extends ProgramPlugin implements ThemeListener 
 
     public File getOrStartNewConsoleKernel() {
         if (currentKernel == null) {
+            cellContext.set(cellContext.getState(), terminal.taskMonitorComponent, cellContext.getControls().getWriter());
             currentKernel = new KotlinQtConsoleThread(cellContext, ConnectionFile.create());
             runManager.runNow(currentKernel, "Kotlin kernel");
         }
