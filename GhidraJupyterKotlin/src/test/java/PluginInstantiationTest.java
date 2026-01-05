@@ -20,4 +20,8 @@ public class PluginInstantiationTest extends AbstractGhidraHeadedIntegrationTest
         var defaultSettings = new DefaultSettingsProvider();
         var widget = new JediTermWidget(60, 40, defaultSettings);
     }
+
+    public void testDebuggerTool() {
+        // TODO: Test that the plugin works inside the debugger tool too. It used to crash because state was null
+    }
 }

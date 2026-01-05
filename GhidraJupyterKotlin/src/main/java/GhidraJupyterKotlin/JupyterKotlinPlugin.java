@@ -100,7 +100,9 @@ public class JupyterKotlinPlugin extends ProgramPlugin implements ThemeListener 
                         .description("Configure the jupyter-console path")
                         .build()
         );
-
+        var state = new GhidraState(tool, tool.getProject(),
+                null, null, null, null);
+        cellContext.set(state);
 
 
 	}
