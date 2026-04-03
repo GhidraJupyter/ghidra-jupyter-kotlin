@@ -6,6 +6,10 @@ import com.jediterm.terminal.ProcessTtyConnector;
 import com.jediterm.terminal.TerminalColor;
 import com.jediterm.terminal.TtyConnector;
 import com.jediterm.terminal.emulator.ColorPalette;
+import com.jediterm.terminal.model.hyperlinks.HyperlinkFilter;
+import com.jediterm.terminal.model.hyperlinks.LinkInfo;
+import com.jediterm.terminal.model.hyperlinks.LinkResult;
+import com.jediterm.terminal.model.hyperlinks.LinkResultItem;
 import com.jediterm.terminal.ui.JediTermWidget;
 import com.jediterm.terminal.ui.settings.DefaultSettingsProvider;
 import com.pty4j.PtyProcess;
@@ -15,6 +19,9 @@ import docking.ComponentProvider;
 import docking.Tool;
 
 import generic.theme.Gui;
+import ghidra.app.services.GoToService;
+import ghidra.app.services.ProgramManager;
+import ghidra.program.model.address.Address;
 import ghidra.util.Msg;
 import ghidra.util.task.TaskLauncher;
 import ghidra.util.task.TaskMonitorComponent;
@@ -29,9 +36,12 @@ import java.awt.event.*;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static GhidraJupyterKotlin.JupyterKotlinPlugin.OPTION_CONSOLE_PATH;
 
@@ -71,6 +81,7 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
     private JediTermWidget constructWidget() {
         var widget = new JediTermWidget(80, 24, settings);
         widget.getTerminalPanel().addKeyListener(new CustomKeyAdapter());
+        widget.addHyperlinkFilter(new GhidraAddressHyperlinkFilter());
         return widget;
     }
 
@@ -296,6 +307,53 @@ public class TerminalDockingWindowComponent extends ComponentProvider {
         @Override
         public ColorPalette getTerminalColorPalette() {
             return cachedPalette;
+        }
+    }
+
+    /**
+     * Hyperlink filter that detects hex addresses in terminal output, validates them against
+     * the current program's memory map, and makes them clickable to navigate in Ghidra.
+     * Matches 0x-prefixed hex (4+ digits) and bare hex strings (8+ digits).
+     */
+    private class GhidraAddressHyperlinkFilter implements HyperlinkFilter {
+        private static final Pattern ADDRESS_PATTERN = Pattern.compile(
+                "\\b(?:0[xX][0-9a-fA-F]{4,16}|[0-9a-fA-F]{8,16})\\b"
+        );
+
+        @Override
+        public @Nullable LinkResult apply(@NotNull String line) {
+            var pluginTool = plugin.getTool();
+            if (pluginTool == null) return null;
+            var pm = pluginTool.getService(ProgramManager.class);
+            if (pm == null) return null;
+            var program = pm.getCurrentProgram();
+            if (program == null) return null;
+
+            var addressFactory = program.getAddressFactory();
+            var memory = program.getMemory();
+            var items = new ArrayList<LinkResultItem>();
+
+            Matcher matcher = ADDRESS_PATTERN.matcher(line);
+            while (matcher.find()) {
+                String matched = matcher.group();
+                // Strip 0x/0X prefix for Ghidra address parsing
+                String addrStr = (matched.startsWith("0x") || matched.startsWith("0X"))
+                        ? matched.substring(2) : matched;
+                Address addr = addressFactory.getAddress(addrStr);
+                if (addr != null && memory.contains(addr)) {
+                    final Address targetAddr = addr;
+                    items.add(new LinkResultItem(
+                            matcher.start(), matcher.end(),
+                            new LinkInfo(() -> {
+                                var goTo = pluginTool.getService(GoToService.class);
+                                if (goTo != null) {
+                                    goTo.goTo(targetAddr);
+                                }
+                            })
+                    ));
+                }
+            }
+            return items.isEmpty() ? null : new LinkResult(items);
         }
     }
 
