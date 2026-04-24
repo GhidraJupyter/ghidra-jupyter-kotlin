@@ -61,7 +61,7 @@ jobs:
         run: timeout 5s $GHIDRA_INSTALL_DIR/support/launch.sh fg jdk Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124))
 
       - name: Install jupyter-console for testing evaluation
-        run: sudo apt-get install jupyter-console
+        run: sudo apt-get update && sudo apt-get install -y jupyter-console
         
       - name: Test basic evaluation
         run: |
