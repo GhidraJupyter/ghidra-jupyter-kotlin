@@ -62,7 +62,7 @@ else {
 
 dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlin-jupyter-kernel
-    api('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.16.0-717')
+    api('org.jetbrains.kotlinx:kotlin-jupyter-kernel:0.16.0-742')
 
 	// Needed for compiling
 	// after building they are already included as part of the recursive dependencies of kotlin-jupyter-kernel
