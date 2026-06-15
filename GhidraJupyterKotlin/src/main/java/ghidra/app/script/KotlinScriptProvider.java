@@ -34,6 +34,8 @@ import org.jetbrains.kotlin.config.CompilerConfiguration;
 import org.jetbrains.kotlin.config.JVMConfigurationKeys;
 import org.jetbrains.kotlin.utils.PathUtil;
 
+import ghidra.framework.Application;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -82,6 +84,20 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
 
         // Assuming script is in default java package, so using script's base name as class name.
         File clazzFile = getClassFile(sourceFile, GhidraScriptUtil.getBaseName(sourceFile));
+
+        // Try loading it via the regular GhidraClassLoader.
+        // If we can load it with that classloader it means it being loaded from _somewhere else_, most likely
+        // the classpath of an extension that also ships the script
+        // this means that it can only be changed by recompiling the script via the IDE
+        // We warn about this explicitly
+//        try {
+//            var classFromExtension = this.getClass().getClassLoader().loadClass(clazzName);
+//            // We managed to load the class, so it did _not_ come from the file that this ScriptProvider Compiled
+//        } catch (ClassNotFoundException e) {
+//            // expected result, continue on
+//        }
+
+
         try {
             compile(sourceFile, writer); // may throw an exception
         } catch (ClassNotFoundException e) {
@@ -141,11 +157,10 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
         return resourceFile.getFile(false);
     }
 
-    static ResourceFile getClassFileByResourceFile(ResourceFile sourceFile, String rawName) {
-        String javaAbsolutePath = sourceFile.getAbsolutePath();
-        String classAbsolutePath = javaAbsolutePath.replace(".java", ".class");
-
-        return new ResourceFile(classAbsolutePath);
+    static ResourceFile getClassFileByResourceFile(ResourceFile sourceFile, String className) {
+        File outputDir = getOutputDirectory();
+        String classFileName = className.replace('.', File.separatorChar) + ".class";
+        return new ResourceFile(new File(outputDir, classFileName));
     }
 
     protected boolean needsCompile(ResourceFile sourceFile, File classFile) {
@@ -254,8 +269,15 @@ public class KotlinScriptProvider extends GhidraScriptProvider {
                 .collect(Collectors.toList());
     }
 
+    private static File getOutputDirectory() {
+        File settingsDir = Application.getUserSettingsDirectory();
+        File outputDir = new File(settingsDir, "kotlin-compiled");
+        outputDir.mkdirs();
+        return outputDir;
+    }
+
     private ResourceFile outputDir(ResourceFile sourceFile) {
-        return sourceFile.getParentFile();
+        return new ResourceFile(getOutputDirectory());
     }
 
     private List<Class<?>> getParentClasses(ResourceFile scriptSourceFile) {

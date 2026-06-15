@@ -11,26 +11,48 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - ghidra: "12.0.4"
+          - ghidra: "12.0.3"
+          - ghidra: "12.0.2"
+          - ghidra: "12.0.1"
+          - ghidra: "12.0"
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.21
         uses: actions/setup-java@v1
         with:
           java-version: 1.21
-      - uses: er28-0652/setup-ghidra@master
+      - uses: antoniovazquezblanco/setup-ghidra@v2.0.4
         with:
-                version: "11.3"
+          auth_token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ matrix.ghidra }}
+
+      - name: Run basic tests (with Xvfb)
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: gradle test --info
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4
+        if: always() # always run even if the previous step fails
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+          check_name: 'Test Results'
+
 
       - name: Build Extension
         working-directory: ./GhidraJupyterKotlin
         run: ../gradlew buildExtension
 
-      - name: Upload built extension as artifact for debugging
-        uses: actions/upload-artifact@v4
-        with:
-                path: ./GhidraJupyterKotlin/dist/*zip
-                retention-days: 1
+#      - name: Upload built extension as artifact for debugging
+#        uses: actions/upload-artifact@v4
+#        with:
+#                path: ./GhidraJupyterKotlin/dist/*zip
+#                retention-days: 1
 
       - name: Install Extension
         run: unzip ./GhidraJupyterKotlin/dist/*zip -d $GHIDRA_INSTALL_DIR/Ghidra/Extensions
@@ -39,7 +61,7 @@ jobs:
         run: timeout 5s $GHIDRA_INSTALL_DIR/support/launch.sh fg jdk Ghidra '' '' GhidraJupyterKotlin.GhidraKotlinKernelLaunchable .github/workflows/test-kernel-config.json || exit $(($?-124))
 
       - name: Install jupyter-console for testing evaluation
-        run: sudo apt-get install jupyter-console
+        run: sudo apt-get update && sudo apt-get install -y jupyter-console
         
       - name: Test basic evaluation
         run: |

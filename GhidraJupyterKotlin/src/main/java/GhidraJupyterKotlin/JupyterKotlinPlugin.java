@@ -4,7 +4,14 @@ import docking.ActionContext;
 import docking.action.DockingAction;
 import docking.action.MenuData;
 import docking.action.ToolBarData;
+import docking.action.builder.ActionBuilder;
 import docking.widgets.OptionDialog;
+import docking.widgets.filechooser.GhidraFileChooser;
+import docking.widgets.filechooser.GhidraFileChooserMode;
+import generic.theme.GIcon;
+import generic.theme.Gui;
+import generic.theme.ThemeEvent;
+import generic.theme.ThemeListener;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
 import ghidra.app.script.GhidraState;
@@ -17,19 +24,24 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
 import ghidra.util.Msg;
+import ghidra.util.filechooser.GhidraFileChooserModel;
+import ghidra.util.filechooser.GhidraFileFilter;
 import ghidra.util.task.RunManager;
 import ghidra.util.task.TaskMonitor;
-import org.apache.commons.lang3.ArrayUtils;
 import resources.ResourceManager;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 //@formatter:off
 @PluginInfo(
@@ -40,15 +52,17 @@ import java.net.URISyntaxException;
 	description = "Kotlin Jupyter kernel for Ghidra."
 )
 //@formatter:on
-public class JupyterKotlinPlugin extends ProgramPlugin {
+public class JupyterKotlinPlugin extends ProgramPlugin implements ThemeListener {
 	private static final String OPTION_LAST_URI = "LAST_URI";
 	private static final String DEFAULT_URI = "http://localhost:8888/tree";
 	private static final String OPTION_CONSOLE_CMD = "CONSOLE_CMD";
 	private static final String DEFAULT_CONSOLE_CMD = "jupyter-qtconsole --existing";
-	private static final String PLUGIN_NAME = "JupyterKotlinPlugin";
+	public static final String PLUGIN_NAME = "JupyterKotlinPlugin";
+    public static final String OPTION_CONSOLE_PATH = "CONSOLE_PATH";
 	private final RunManager runManager = new RunManager();
 	private final CellContext cellContext = new CellContext();
-	private Options programOptions;
+    private final TerminalDockingWindowComponent terminal;
+    private Options programOptions;
 	private Options toolOptions;
 
 	public File getConnectionFile() {
@@ -63,30 +77,116 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 	 */
 	public JupyterKotlinPlugin(PluginTool tool) {
 		super(tool);
+        // We listen to theme changes to update the terminal colors
+        Gui.addThemeListener(this);
 		toolOptions = tool.getOptions(PLUGIN_NAME);
 		toolOptions.registerOption(OPTION_CONSOLE_CMD, OptionType.STRING_TYPE, DEFAULT_CONSOLE_CMD, null,
 				"Default Console command to execute (connection file will be appended)");
+        toolOptions.registerOption(OPTION_CONSOLE_PATH, OptionType.FILE_TYPE, null, null,
+                "Path to the jupyter-console executable.");
 		toolOptions.registerOption(OPTION_LAST_URI, OptionType.STRING_TYPE, DEFAULT_URI, null,
 				"Default URI to open when using the GUI shortcut. " +
 						"This can be set to the full path to a specific notebook " +
 						"that should open directly after the kernel starts waiting");
 		registerActions();
-	}
 
-	public void clearKernel() {
-		currentKernel = null;
-	}
+        terminal = new TerminalDockingWindowComponent(tool, this);
+        tool.addComponentProvider(terminal, true);
+        tool.addLocalAction(
+                terminal,
+                new ActionBuilder("Configure the jupyter-console path", getName())
+                        .toolBarIcon(new GIcon("icon.configure.filter"))
+                        .onAction( (e) -> promptForJupyterConsolePath())
+                        .description("Configure the jupyter-console path")
+                        .build()
+        );
+        var state = new GhidraState(tool, tool.getProject(),
+                null, null, null, null);
+        cellContext.set(state);
 
+
+	}
+    /// Return a list of paths where `jupyter-console` binaries can be found
+    public static List<Path> searchDefaultLocationsForConsole() {
+        List<Path> defaultLocations = new ArrayList<>();
+        // /usr/bin/jupyter-console
+        // $HOME/.local/bin/jupyter-console
+        // Ghidra Virtual Env
+        // System.getProperty("pyghidra.sys.prefix")
+        var pyghidraEnv = System.getProperty("pyghidra.sys.prefix");
+        if (pyghidraEnv != null) {
+            var p = Path.of(pyghidraEnv).resolve("bin/jupyter-console");
+            if (Files.exists(p)) {
+                defaultLocations.add(p);
+            }
+        }
+
+        // System path (Linux)
+        var sysPath = Path.of("/usr/bin/jupyter-console");
+        if (Files.exists(sysPath)) {
+            defaultLocations.add(sysPath);
+        }
+
+        // Home dir (Linux)
+        var home =  System.getProperty("user.home");
+        var homePath = Path.of(home, ".local", "bin",  "jupyter-console");
+        if (Files.exists(homePath)) {
+            defaultLocations.add(homePath);
+        }
+
+        return defaultLocations;
+
+    }
+
+    public File promptForJupyterConsolePath() {
+        var defaultLocations = JupyterKotlinPlugin.searchDefaultLocationsForConsole();
+        File defaultSuggestion = null;
+        if (!defaultLocations.isEmpty()) {
+            defaultSuggestion = new File(defaultLocations.getFirst().toUri());
+        }
+
+
+        var chooser = new GhidraFileChooser(null);
+        chooser.setTitle("Select Jupyter Console Executable");
+        chooser.setFileSelectionMode(GhidraFileChooserMode.FILES_ONLY);
+        if (defaultSuggestion != null) {
+            chooser.setSelectedFile(defaultSuggestion);
+        }
+        chooser.setFileFilter(new GhidraFileFilter() {
+            @Override
+            public boolean accept(File pathname, GhidraFileChooserModel model) {
+                return pathname.isDirectory() || pathname.getName().endsWith("jupyter-console");
+            }
+
+            @Override
+            public String getDescription() {
+                return "Get the jupyter-console executable (usually in your Python environment bin/ folder)";
+            }
+        });
+        chooser.setApproveButtonText("Select");
+        File selectedFile = chooser.getSelectedFile();
+
+        if (selectedFile != null && selectedFile.exists()) {
+            toolOptions.setFile(OPTION_CONSOLE_PATH, selectedFile);
+            return selectedFile;
+        }
+        return null;
+    }
+
+    public File getOrStartNewConsoleKernel() {
+        if (currentKernel == null) {
+            cellContext.set(cellContext.getState(), terminal.taskMonitorComponent, cellContext.getControls().getWriter());
+            currentKernel = new KotlinQtConsoleThread(cellContext, ConnectionFile.create());
+            runManager.runNow(currentKernel, "Kotlin kernel");
+        }
+        return currentKernel.getConnectionFile();
+    }
 
 	private void registerActions(){
 		DockingAction action = new DockingAction("Kotlin QtConsole", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
-				if (getConnectionFile() == null) {
-					currentKernel = new KotlinQtConsoleThread(cellContext, ConnectionFile.create());
-					runManager.runNow(currentKernel, "Kotlin kernel");
-				}
-				launchQtConsole();
+                terminal.setVisible(true);
 			}
 		};
 		ImageIcon qtconsoleIcon = ResourceManager.loadImage("images/qtconsole.png");
@@ -100,6 +200,16 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 		DockingAction notebookAction = new DockingAction("Kotlin Notebook", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
+                if (currentKernel != null ){
+                    // Open a confirmation dialog for the user that a kernel is already running and that they wish to replace it
+                    int result = OptionDialog.showYesNoDialog(null,
+                            "Kernel Already Running",
+                            "A Kotlin kernel is already running. Starting a new kernel will stop the current one.\n" +
+                                    "Do you wish to continue and start a new kernel?");
+                    if (result != OptionDialog.OPTION_ONE){
+                        return;
+                    }
+                }
 				currentKernel = new NotebookThread(cellContext, tool);
 				runManager.runNow(currentKernel, "Notebook");
 			}
@@ -150,24 +260,7 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 //		tool.addAction(shutdownAction);
 	}
 
-	private void launchQtConsole() {
-		String[] console = toolOptions.getString(OPTION_CONSOLE_CMD,
-				DEFAULT_CONSOLE_CMD).split(" ");
-		String[] command = ArrayUtils.add(console, currentKernel.getConnectionFile().toString());
-		try {
-			Runtime.getRuntime().exec(command);
-		} catch (IOException e) {
-			Msg.showError(this, null, "QT Console process failed",
-					"The console command failed to start because of an IOException.\n" +
-							"Most likely jupyter-qtconsole is not available in your PATH because it wasn't installed\n" +
-							"or your custom command has some issues\n" +
-							"You can manually run the following command to debug this: \n" +
-							String.join(" ", command) +
-							"\nThe kernel*.json path is optional. Leaving it out will reconnect to your most recent running kernel, which is most likely the correct one.\n" +
-							"You can also run 'jupyter-console --existing' for a terminal based console which is typically already included with a Jupyter install",
-					e);
-		}
-	}
+
 
 	private URI checkForRunningNotebookServer(){
 		Runtime rt = Runtime.getRuntime();
@@ -323,4 +416,12 @@ public class JupyterKotlinPlugin extends ProgramPlugin {
 			cellContext.setCurrentHighlight(hl);
 		}
 	}
+
+    @Override
+    public void themeChanged(ThemeEvent event) {
+        if (event.hasAnyColorChanged()) {
+            // We can only handle color changes, font changes require a Ghidra restart for now
+            terminal.updateTerminalColors();
+        }
+    }
 }

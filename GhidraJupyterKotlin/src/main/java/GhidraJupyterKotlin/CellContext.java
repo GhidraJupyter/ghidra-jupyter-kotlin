@@ -5,6 +5,7 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
 import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
+import ghidra.util.task.TaskMonitorComponent;
 
 public class CellContext extends GhidraScript {
 
@@ -68,6 +69,13 @@ public class CellContext extends GhidraScript {
 
     public Function getCurrentFunction() {
         return currentProgram.getFunctionManager().getFunctionContaining(currentAddress);
+    }
+
+    public TaskMonitorComponent  getTaskMonitorComponent() {
+        if (monitor instanceof TaskMonitorComponent) {
+            return  (TaskMonitorComponent) monitor;
+        };
+        return null;
     }
 
 }

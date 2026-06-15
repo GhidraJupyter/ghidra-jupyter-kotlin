@@ -1,0 +1,70 @@
+name: Auto Release for New Ghidra Versions
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write
+
+jobs:
+  check-new-ghidra:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.check.outputs.new_version }}
+      should_release: ${{ steps.check.outputs.should_release }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for new Ghidra version
+        id: check
+        run: |
+          ## fmagin: Warning, the following was written by Claude Code
+          # Get latest Ghidra release (uses gh CLI for automatic auth handling to not run into rate limiting)
+          # The ghidra releases are tagged like "Ghidra_12.0_build"
+          LATEST_GHIDRA=$(gh release -R NationalSecurityAgency/Ghidra view --json tagName --jq ".tagName" | awk -F "_" '{print $2}')
+          echo "Latest Ghidra version: $LATEST_GHIDRA"
+          echo "new_version=$LATEST_GHIDRA" >> $GITHUB_OUTPUT
+
+          # Check if the latest release has any asset for this Ghidra version
+          ASSET_NAME=$(gh release view --json assets --jq ".assets[] | select(.name | contains(\"ghidra_${LATEST_GHIDRA}_\")) | .name")
+
+          if [[ -n "$ASSET_COUNT" ]]; then
+            echo "No artifact found for Ghidra $LATEST_GHIDRA - will create release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "Artifacts already exist for Ghidra Version $LATEST_GHIDRA: $ASSET_NAME"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-new-version:
+    needs: check-new-ghidra
+    if: needs.check-new-ghidra.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 1.21
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.21
+
+      - uses: antoniovazquezblanco/setup-ghidra@v2.0.4
+        with:
+          version: ${{ needs.check-new-ghidra.outputs.new_version }}
+
+      - name: Build Extension
+        working-directory: ./GhidraJupyterKotlin
+        run: gradle buildExtension
+
+      - name: Upload release ZIP
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: gh release upload ${{github.event.release.tag_name}} dist/ghidra_${{matrix.ghidra}}_*.zip
+

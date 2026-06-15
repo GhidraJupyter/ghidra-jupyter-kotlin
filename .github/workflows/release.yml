@@ -1,33 +1,48 @@
 name: Main
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - ghidra: "11.4.3"
+          - ghidra: "11.4.2"
+          - ghidra: "11.4.1"
+          - ghidra: "11.4"
+          - ghidra: "11.3.2"
+          - ghidra: "11.3.1"
+          - ghidra: "11.3"
+          - ghidra: "11.2.1"
+          - ghidra: "11.2"
+
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set up JDK 1.21
         uses: actions/setup-java@v1
         with:
           java-version: 1.21
       - uses: er28-0652/setup-ghidra@master
         with:
-          version: "11.3"
+          version: ${{ matrix.ghidra }}
+          auth_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build with Gradle
         working-directory: ./GhidraJupyterKotlin
         run: ../gradlew buildExtension
 
-      - name: Debug github.ref
-        run: echo ${{github.ref}}
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./GhidraJupyterKotlin/dist/*zip
+      - name: Upload release ZIP
+        working-directory: ./GhidraJupyterKotlin
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: gh release upload ${{github.event.release.tag_name}} dist/ghidra_${{matrix.ghidra}}_*.zip

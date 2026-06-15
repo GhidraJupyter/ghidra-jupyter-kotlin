@@ -1,9 +1,9 @@
 name: Python Package
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  release:
+    types: [published]
+
 jobs:
   build-and-inspect-package:
     name: Build & inspect package.
